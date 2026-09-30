@@ -1,18 +1,39 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-const panel = (page: Page) => page.locator(".action-panel");
-const pick = async (page: Page, name: string) => {
-  await panel(page)
-    .getByRole("button", { name: new RegExp(`^${name} Còn sống`) })
+// A player's card on the current turn; its name may carry a note ("An, Đồng bầy").
+const card = (page: Page, name: string) =>
+  page
+    .locator(".card-grid")
+    .getByRole("button", { name: new RegExp(`^${name}(, .*)?$`) });
+// Tap a card, then the action that appears on it, e.g. "Cắn Minh".
+async function act(page: Page, verb: string, name: string) {
+  await card(page, name).click();
+  await page
+    .getByRole("button", { name: `${verb} ${name}`, exact: true })
     .click();
-};
-const confirm = async (page: Page) => {
-  await page.getByRole("button", { name: "Xác nhận & tiếp tục" }).click();
-};
-async function hang(page: Page, suspect: string) {
+}
+// The seer's card flips to the result; "Xong" records it.
+async function see(page: Page, name: string, result?: string) {
+  await page.getByRole("button", { name: `Soi ${name}`, exact: true }).click();
+  if (result) await expect(page.getByRole("status")).toContainText(result);
+  await page.getByRole("button", { name: "Xong", exact: true }).click();
+}
+async function accuse(page: Page, name: string) {
   await page.getByRole("button", { name: "Bắt đầu thảo luận" }).click();
-  await pick(page, suspect);
-  await page.getByRole("button", { name: "Mời lên thanh minh" }).click();
+  await card(page, name).click();
+  await page
+    .getByRole("button", { name: `Mời ${name} lên thanh minh`, exact: true })
+    .click();
+}
+async function hang(page: Page, suspect: string) {
+  await accuse(page, suspect);
   await page.getByRole("button", { name: "Treo cổ", exact: true }).click();
+}
+// Deal role cards to the seats in table order.
+async function deal(page: Page, roleNames: string[]) {
+  for (const role of roleNames)
+    await page
+      .getByRole("button", { name: `Chia ${role}`, exact: true })
+      .click();
 }
 async function inspectSize(page: Page, name: string, width: number) {
   await page.setViewportSize({ width, height: 900 });
@@ -63,12 +84,32 @@ test("wizard, full two-night game, replay, summaries and history", async ({
   await page.getByRole("button", { name: "Tiếp tục", exact: true }).click();
   await expect(page.getByText("8 / 8 lá bài")).toBeVisible();
   await page.getByRole("button", { name: "Tiếp tục", exact: true }).click();
-  // Default deck: An/Bình wolves, Cường guard, Dũng seer, Hà witch, Lan hunter, Minh/Phúc villagers.
-  await page.getByLabel("Vai của Cường", { exact: true }).selectOption("seer");
-  await expect(page.getByLabel("Vai của Dũng", { exact: true })).toHaveValue(
-    "guard",
-  );
-  await page.getByLabel("Vai của Cường", { exact: true }).selectOption("guard");
+  // Nobody holds a card until the moderator deals one.
+  await expect(page.getByText("Đã chia 0 / 8 lá")).toBeVisible();
+  await deal(page, [
+    "Ma Sói",
+    "Ma Sói",
+    "Tiên tri",
+    "Bảo vệ",
+    "Phù thủy",
+    "Thợ săn",
+    "Dân thường",
+    "Dân thường",
+  ]);
+  await expect(
+    page.getByRole("button", { name: "Chia Ma Sói", exact: true }),
+  ).toBeDisabled();
+  // Cường and Dũng swap: take Cường's card back, deal him the guard.
+  await page.getByRole("button", { name: "Cường: Tiên tri" }).click();
+  await page.getByRole("button", { name: "Trả lá", exact: true }).click();
+  await page.getByRole("button", { name: "Dũng: Bảo vệ" }).click();
+  await page.getByRole("button", { name: "Trả lá", exact: true }).click();
+  await expect(page.getByText("Đã chia 6 / 8 lá")).toBeVisible();
+  await page.getByRole("button", { name: "Cường: chưa có vai" }).click();
+  await deal(page, ["Bảo vệ", "Tiên tri"]);
+  await expect(
+    page.getByRole("button", { name: "Dũng: Tiên tri" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Tiếp tục", exact: true }).click();
   await page.getByRole("button", { name: "Mở bảng vai bí mật" }).click();
   await inspectSize(page, "02-review", 390);
@@ -77,8 +118,8 @@ test("wizard, full two-night game, replay, summaries and history", async ({
     page.getByRole("heading", { name: "Đêm 1", exact: true }),
   ).toBeVisible();
   await inspectSize(page, "03-night", 390);
-  await pick(page, "Minh");
-  await confirm(page);
+  await expect(card(page, "An")).toBeDisabled();
+  await act(page, "Cắn", "Minh");
   await expect(
     page.getByRole("heading", { name: "Đêm nay, bảo vệ ai?" }),
   ).toBeVisible();
@@ -86,14 +127,9 @@ test("wizard, full two-night game, replay, summaries and history", async ({
   await expect(
     page.getByRole("heading", { name: "Bầy Sói chọn ai?" }),
   ).toBeVisible();
-  await pick(page, "Minh");
-  await confirm(page);
-  await pick(page, "Minh");
-  await confirm(page);
-  await pick(page, "An");
-  await page.getByRole("button", { name: "Xem kết quả" }).click();
-  await expect(page.locator(".seer-result")).toContainText("MA SÓI");
-  await confirm(page);
+  await act(page, "Cắn", "Minh");
+  await act(page, "Che", "Minh");
+  await see(page, "An", "Ma Sói");
   await page.getByRole("button", { name: "Giữ lại bình thuốc" }).click();
   await page.getByRole("button", { name: "Gọi làng thức dậy" }).click();
   await expect(
@@ -113,29 +149,32 @@ test("wizard, full two-night game, replay, summaries and history", async ({
   await expect(page.locator(".secret-badge")).toBeVisible();
   await page.getByRole("button", { name: "Bắt đầu thảo luận" }).click();
   await expect(
-    page.getByRole("heading", { name: "Làng ơi, cùng tìm sự thật." }),
+    page.getByRole("heading", { name: "Làng nghi ai nhất?" }),
   ).toBeVisible();
-  await pick(page, "An");
-  await page.getByRole("button", { name: "Mời lên thanh minh" }).click();
+  await card(page, "An").click();
+  await page
+    .getByRole("button", { name: "Mời An lên thanh minh", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "An thanh minh." }),
   ).toBeVisible();
   await inspectSize(page, "08-trial", 360);
   await page.setViewportSize({ width: 390, height: 900 });
-  await page.getByRole("button", { name: "Treo cổ", exact: true }).click();
+  // A short drag springs back; a long one to the right hangs.
+  await drag(page, page.locator(".verdict-card"), 60);
+  await expect(
+    page.getByRole("heading", { name: "An thanh minh." }),
+  ).toBeVisible();
+  await drag(page, page.locator(".verdict-card"), 160);
   await expect(page.getByText("An đã bị treo cổ.")).toBeVisible();
   await page.getByRole("button", { name: "Bắt đầu đêm 2" }).click();
-  await pick(page, "Phúc");
-  await confirm(page);
+  await act(page, "Cắn", "Phúc");
   await expect(
-    panel(page).getByRole("button", { name: /^Minh Còn sống/ }),
-  ).toHaveCount(0);
-  await pick(page, "Cường");
-  await confirm(page);
-  await pick(page, "Bình");
-  await page.getByRole("button", { name: "Xem kết quả" }).click();
-  await confirm(page);
-  await pick(page, "Bình");
+    page.getByRole("button", { name: "Minh, Không che liên tiếp" }),
+  ).toBeDisabled();
+  await act(page, "Che", "Cường");
+  await see(page, "Bình");
+  await act(page, "Đầu độc", "Bình");
   await page.getByRole("button", { name: "Xác nhận dùng thuốc" }).click();
   await page.getByRole("button", { name: "Gọi làng thức dậy" }).click();
   await expect(
@@ -175,7 +214,8 @@ test("wizard, full two-night game, replay, summaries and history", async ({
   await page.getByRole("button", { name: "Tiếp tục", exact: true }).click();
   await expect(page.getByText("8 / 8 lá bài")).toBeVisible();
   await page.getByRole("button", { name: "Tiếp tục", exact: true }).click();
-  await expect(page.getByLabel("Vai của Phúc", { exact: true })).toBeVisible();
+  // The old roles are not dealt again by default.
+  await expect(page.getByText("Đã chia 0 / 8 lá")).toBeVisible();
   await page.getByRole("button", { name: "Trang chủ", exact: true }).click();
   await expect(page.locator(".game-entry")).toHaveCount(1);
   await expect(page.locator(".history-entry")).toContainText("Làng kiểm chứng");
@@ -203,8 +243,7 @@ test("offline reload, closed tab restore, public privacy and responsive layouts"
   for (const width of [360, 390, 430, 768, 1280])
     await inspectSize(page, "06-gameplay", width);
   await page.setViewportSize({ width: 390, height: 844 });
-  await pick(page, "Bình");
-  await confirm(page);
+  await act(page, "Cắn", "Bình");
   await expect(
     page.getByRole("heading", { name: "Đêm nay, bảo vệ ai?" }),
   ).toBeVisible();
@@ -213,8 +252,7 @@ test("offline reload, closed tab restore, public privacy and responsive layouts"
   await expect(
     page.getByRole("heading", { name: "Đêm nay, bảo vệ ai?" }),
   ).toBeVisible();
-  await pick(page, "Bình");
-  await confirm(page);
+  await act(page, "Che", "Bình");
   await page.getByRole("switch", { name: "Xem người chơi" }).click();
   await expect(
     page.locator(".seat", { hasText: "Bình" }).getByText("Được bảo vệ"),
@@ -225,20 +263,18 @@ test("offline reload, closed tab restore, public privacy and responsive layouts"
   await page.getByRole("switch", { name: "Xem người chơi" }).click();
   await expect(page.locator(".ledger")).toHaveCount(0);
   await expect(
-    page.getByRole("heading", { name: "Chọn một người để soi" }),
+    page.getByRole("heading", { name: "Tiên tri soi ai?" }),
   ).toBeVisible();
   const next = await context.newPage();
   await page.close();
   await next.goto("/");
   await next.locator(".game-entry").click();
   await expect(
-    next.getByRole("heading", { name: "Chọn một người để soi" }),
+    next.getByRole("heading", { name: "Tiên tri soi ai?" }),
   ).toBeVisible();
-  await pick(next, "An");
-  await next.getByRole("button", { name: "Xem kết quả" }).click();
-  await confirm(next);
+  await see(next, "An");
   await expect(
-    next.getByRole("heading", { name: "Hai bình thuốc. Một quyết định." }),
+    next.getByRole("heading", { name: "Phù thủy", exact: true }),
   ).toBeVisible();
   const images = await next
     .locator("img")
@@ -251,7 +287,7 @@ test("offline reload, closed tab restore, public privacy and responsive layouts"
     );
   expect(images).toBe(true);
 });
-test("random assignment preserves deck and duplicate names are rejected", async ({
+test("roles are dealt by hand, kept on reload, and names stay unique", async ({
   page,
 }) => {
   await page.goto("/");
@@ -271,20 +307,39 @@ test("random assignment preserves deck and duplicate names are rejected", async 
     "Tên này đã có",
   );
   await page.getByRole("button", { name: "Tiếp tục", exact: true }).click();
+  // 4 players: 1 Ma Sói, 1 Tiên tri, 2 Dân thường. Tap a card to add, minus to remove.
+  await page.getByRole("button", { name: "Bớt Tiên tri", exact: true }).click();
+  await expect(page.getByText("Còn thiếu 1 lá.")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Thêm Tiên tri", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Thêm Tiên tri", exact: true }),
+  ).toBeDisabled();
   await page.getByRole("button", { name: "Tiếp tục", exact: true }).click();
-  await expect(page.locator(".assignment-list select")).toHaveCount(4);
-  const before = await page
-    .locator(".assignment-list select")
-    .evaluateAll((items) =>
-      items.map((e) => (e as HTMLSelectElement).value).sort(),
-    );
-  await page.getByRole("button", { name: "Xáo vai ngẫu nhiên" }).click();
-  const after = await page
-    .locator(".assignment-list select")
-    .evaluateAll((items) =>
-      items.map((e) => (e as HTMLSelectElement).value).sort(),
-    );
-  expect(after).toEqual(before);
+  await page.getByRole("button", { name: "Tiếp tục", exact: true }).click();
+  await expect(page.locator(".error[role=alert]")).toContainText(
+    "Còn 4 người chưa có vai.",
+  );
+  await deal(page, ["Dân thường", "Ma Sói", "Dân thường"]);
+  await expect(
+    page.getByRole("button", { name: "Chia Dân thường", exact: true }),
+  ).toBeDisabled();
+  await page.reload();
+  await expect(page.getByText("Đã chia 3 / 4 lá")).toBeVisible();
+  await expect(page.getByRole("button", { name: "B: Ma Sói" })).toBeVisible();
+  // The next empty seat is picked again after the reload.
+  await expect(
+    page.getByRole("button", { name: "D: chưa có vai" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await deal(page, ["Tiên tri"]);
+  await page.getByRole("button", { name: "Úp vai đã chia" }).click();
+  await expect(
+    page.getByRole("button", { name: "B: đã có vai" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Tiếp tục", exact: true }).click();
+  await page.getByRole("button", { name: "Mở bảng vai bí mật" }).click();
+  await expect(page.locator(".review-grid")).toContainText("Ma Sói");
 });
 
 test("keyboard access, install manifest and automated accessibility", async ({
@@ -375,8 +430,7 @@ test("browser restart retains IndexedDB and cached app shell offline", async () 
       page.getByText("Sẵn sàng offline", { exact: true }),
     ).toBeVisible();
     await page.getByRole("button", { name: "Mở ván mẫu" }).click();
-    await pick(page, "Bình");
-    await confirm(page);
+    await act(page, "Cắn", "Bình");
     await expect(
       page.getByRole("heading", { name: "Đêm nay, bảo vệ ai?" }),
     ).toBeVisible();
@@ -457,67 +511,59 @@ test("Sói con enrages the pack and the witch picks whom to save", async ({
   }
   await page.getByRole("button", { name: "Tiếp tục", exact: true }).click();
   for (const label of [
-    "Giảm Ma Sói",
+    "Bớt Ma Sói",
     "Thêm Sói con",
-    "Giảm Bảo vệ",
+    "Bớt Bảo vệ",
     "Thêm Phù thủy",
-    "Giảm Dân thường",
+    "Bớt Dân thường",
     "Thêm Chán đời",
   ])
     await page.getByRole("button", { name: label, exact: true }).click();
-  await expect(page.getByText("2 Sói · 4 Dân · 1 Chán đời")).toBeVisible();
+  await expect(page.getByText("2 Sói, 5 người còn lại.")).toBeVisible();
   // Role settings only list roles that are in the deck.
   await expect(page.getByRole("group", { name: "Phù thủy" })).toBeVisible();
   await expect(page.getByRole("group", { name: "Thợ săn" })).toHaveCount(0);
   await expect(page.getByRole("group", { name: "Bảo vệ" })).toHaveCount(0);
   await page.getByRole("button", { name: "Tiếp tục", exact: true }).click();
-  // Deck order: An Ma Sói, Bình Sói con, Cường Tiên tri, Dũng Phù thủy,
-  // Hà/Lan Dân thường, Minh Chán đời.
-  await expect(page.getByLabel("Vai của Bình", { exact: true })).toHaveValue(
-    "wolf_cub",
-  );
-  await expect(page.getByLabel("Vai của Minh", { exact: true })).toHaveValue(
-    "tanner",
-  );
+  await deal(page, [
+    "Ma Sói",
+    "Sói con",
+    "Tiên tri",
+    "Phù thủy",
+    "Dân thường",
+    "Dân thường",
+    "Chán đời",
+  ]);
   await page.getByRole("button", { name: "Tiếp tục", exact: true }).click();
   await page.getByRole("button", { name: "Bắt đầu đêm 1" }).click();
-  await pick(page, "Hà");
-  await confirm(page);
-  await pick(page, "Bình");
-  await page.getByRole("button", { name: "Xem kết quả" }).click();
-  await expect(page.locator(".seer-result")).toContainText("MA SÓI");
-  await confirm(page);
-  await pick(page, "Bình");
+  await expect(
+    page.getByRole("button", { name: "Bình, Đồng bầy" }),
+  ).toBeDisabled();
+  await act(page, "Cắn", "Hà");
+  await see(page, "Bình", "Ma Sói");
+  await act(page, "Đầu độc", "Bình");
   await page.getByRole("button", { name: "Xác nhận dùng thuốc" }).click();
   await page.getByRole("button", { name: "Gọi làng thức dậy" }).click();
   // Sparing the suspect skips the verdict screen and goes straight to night.
-  await page.getByRole("button", { name: "Bắt đầu thảo luận" }).click();
-  await pick(page, "Lan");
-  await page.getByRole("button", { name: "Mời lên thanh minh" }).click();
+  await accuse(page, "Lan");
   await page.getByRole("button", { name: "Tha", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Đêm 2", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("Lượt cắn 1/2")).toBeVisible();
-  await pick(page, "Cường");
-  await confirm(page);
+  await act(page, "Cắn", "Cường");
   await expect(
     page.getByRole("heading", { name: "Bầy Sói chọn người thứ hai?" }),
   ).toBeVisible();
   await expect(
-    panel(page).getByRole("button", { name: /^Cường Còn sống/ }),
-  ).toHaveCount(0);
-  await pick(page, "Minh");
-  await confirm(page);
-  await pick(page, "An");
-  await page.getByRole("button", { name: "Xem kết quả" }).click();
-  await confirm(page);
-  await expect(page.locator(".wolf-victim")).toContainText("Cường · Minh");
-  await page.getByLabel("Dùng bình cứu").check();
-  const save = page.getByRole("button", { name: "Xác nhận dùng thuốc" });
-  await expect(save).toBeDisabled();
-  await page.getByRole("radio", { name: "Cường" }).check();
-  await save.click();
+    page.getByRole("button", { name: "Cường, Đã bị cắn" }),
+  ).toBeDisabled();
+  await act(page, "Cắn", "Minh");
+  await see(page, "An");
+  await expect(page.locator(".victim-card")).toHaveText([/Cường/, /Minh/]);
+  await page.getByRole("button", { name: "Cứu Cường", exact: true }).click();
+  await expect(page.locator(".victim-card.saved")).toContainText("Cường");
+  await page.getByRole("button", { name: "Xác nhận dùng thuốc" }).click();
   await page.getByRole("button", { name: "Gọi làng thức dậy" }).click();
   await hang(page, "An");
   await expect(
@@ -534,19 +580,16 @@ test("a dead Tiên tri is still called, as a pretend call", async ({ page }) => 
   await page.goto("/");
   await page.getByRole("button", { name: "Mở ván mẫu" }).click();
   // Ván mẫu: An/Phúc Ma Sói, Cường Tiên tri, Dũng Bảo vệ, Lan Phù thủy.
-  await pick(page, "Cường");
-  await confirm(page);
-  await pick(page, "Bình");
-  await confirm(page);
-  await pick(page, "An");
-  await page.getByRole("button", { name: "Xem kết quả" }).click();
-  await confirm(page);
+  await act(page, "Cắn", "Cường");
+  await act(page, "Che", "Bình");
+  await see(page, "An");
   await page.getByRole("button", { name: "Giữ lại bình thuốc" }).click();
   await page.getByRole("button", { name: "Gọi làng thức dậy" }).click();
   await page.getByRole("button", { name: "Bắt đầu thảo luận" }).click();
-  await page.getByRole("button", { name: "Không đưa ai lên" }).click();
-  await pick(page, "Hà");
-  await confirm(page);
+  await page
+    .getByRole("button", { name: "Không đưa ai lên, sang đêm" })
+    .click();
+  await act(page, "Cắn", "Hà");
   // The roster shows tonight's marks, the dead with their cause, and the
   // switch goes straight back to the current call.
   const toggle = page.getByRole("switch", { name: "Xem người chơi" });
@@ -561,13 +604,22 @@ test("a dead Tiên tri is still called, as a pretend call", async ({ page }) => 
   await expect(
     page.getByRole("heading", { name: "Đêm nay, bảo vệ ai?" }),
   ).toBeVisible();
-  await pick(page, "Dũng");
-  await confirm(page);
+  await act(page, "Che", "Dũng");
   await expect(page.locator(".fake-call")).toContainText("Tiên tri");
-  await expect(panel(page)).toHaveCount(0);
+  await expect(page.locator(".card-grid")).toHaveCount(0);
   await inspectSize(page, "10-fake-call", 390);
   await page.getByRole("button", { name: "Tiếp tục", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Hai bình thuốc. Một quyết định." }),
+    page.getByRole("heading", { name: "Phù thủy", exact: true }),
   ).toBeVisible();
 });
+async function drag(page: Page, target: Locator, dx: number) {
+  const box = (await target.boundingBox())!;
+  const x = box.x + box.width / 2,
+    y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  for (let step = 1; step <= 8; step++)
+    await page.mouse.move(x + (dx * step) / 8, y);
+  await page.mouse.up();
+}

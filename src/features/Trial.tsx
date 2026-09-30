@@ -1,9 +1,9 @@
 "use client";
-import { useState } from "react";
-import { ArrowRight, Gavel, HeartHandshake } from "lucide-react";
+import { useRef, useState, type PointerEvent } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { GameState } from "../domain/types";
 import type { Command } from "../engine/engine";
-import { ActionPanel, GameButton, PlayerToken } from "../components/ui";
+import { GameButton, PlayerCard } from "../components/ui";
 import { playerName } from "../story/narrative";
 // The village counts hands at the table; the app only records who was put
 // on trial and whether the village hanged or spared them.
@@ -18,44 +18,51 @@ export function Nomination({
 }) {
   const [suspect, setSuspect] = useState<string>();
   return (
-    <ActionPanel
-      title="Làng ơi, cùng tìm sự thật."
-      description="Sau khi thảo luận, chọn người bị nghi ngờ nhất để họ thanh minh."
-    >
-      <div className="player-grid">
+    <section className="turn" aria-labelledby="turn-title">
+      <header>
+        <h2 id="turn-title">Làng nghi ai nhất?</h2>
+        <p className="muted">
+          Sau khi thảo luận, chạm thẻ người bị nghi rồi chạm Mời lên ngay trên
+          thẻ.
+        </p>
+      </header>
+      <div className="card-grid">
         {state.players
           .filter((p) => p.alive)
           .map((p) => (
-            <PlayerToken
+            <PlayerCard
               key={p.id}
               player={p}
-              selected={suspect === p.id}
               disabled={busy}
+              selected={suspect === p.id}
               onClick={() => setSuspect(suspect === p.id ? undefined : p.id)}
+              action={
+                suspect === p.id && !busy
+                  ? {
+                      label: "Mời lên",
+                      name: `Mời ${p.name} lên thanh minh`,
+                      onClick: () =>
+                        void onCommand({ type: "nominate", targetId: p.id }),
+                    }
+                  : undefined
+              }
             />
           ))}
       </div>
-      <div className="action-footer">
+      <div className="turn-footer">
         <GameButton
           variant="ghost"
           disabled={busy}
           onClick={() => void onCommand({ type: "nominate" })}
         >
-          Không đưa ai lên
-        </GameButton>
-        <GameButton
-          disabled={busy || !suspect}
-          onClick={() =>
-            void onCommand({ type: "nominate", targetId: suspect })
-          }
-        >
-          Mời lên thanh minh
-          <ArrowRight size={18} />
+          Không đưa ai lên, sang đêm
         </GameButton>
       </div>
-    </ActionPanel>
+    </section>
   );
 }
+// Past this distance a released swipe counts as a verdict.
+const VERDICT_SWIPE = 110;
 export function Defense({
   state,
   onCommand,
@@ -66,29 +73,98 @@ export function Defense({
   busy: boolean;
 }) {
   const name = playerName(state, state.suspectId);
+  const [dx, setDx] = useState(0),
+    [dragging, setDragging] = useState(false);
+  const start = useRef(0);
+  const decide = (execute: boolean) => {
+    setDx(0);
+    setDragging(false);
+    void onCommand({ type: "verdict", execute });
+  };
+  const ratio = Math.max(-1, Math.min(1, dx / VERDICT_SWIPE));
+  const release = () => {
+    if (!dragging) return;
+    if (dx > VERDICT_SWIPE) decide(true);
+    else if (dx < -VERDICT_SWIPE) decide(false);
+    else {
+      setDx(0);
+      setDragging(false);
+    }
+  };
   return (
-    <ActionPanel
-      title={`${name} thanh minh.`}
-      description={`Để ${name} trình bày. Sau đó cả làng quyết định treo cổ hay tha.`}
-    >
-      <div className="action-footer">
+    <section className="turn" aria-labelledby="turn-title">
+      <header>
+        <h2 id="turn-title">{name} thanh minh.</h2>
+        <p className="muted">
+          Nghe xong, vuốt thẻ sang phải để treo cổ, sang trái để tha. Hoặc bấm
+          nút bên dưới.
+        </p>
+      </header>
+      <div className="verdict-stage">
+        <span
+          className="verdict-side spare"
+          style={{ opacity: 0.35 + Math.max(0, -ratio) * 0.65 }}
+          aria-hidden="true"
+        >
+          <ChevronLeft size={26} />
+          Tha
+        </span>
+        <div
+          className={`verdict-card ${ratio > 0.25 ? "to-hang" : ratio < -0.25 ? "to-spare" : ""}`}
+          style={{
+            transform: `translateX(${dx}px) rotate(${dx / 16}deg)`,
+            transition: dragging ? "none" : undefined,
+          }}
+          onPointerDown={(e: PointerEvent<HTMLDivElement>) => {
+            if (busy) return;
+            start.current = e.clientX;
+            e.currentTarget.setPointerCapture(e.pointerId);
+            setDragging(true);
+          }}
+          onPointerMove={(e) => {
+            if (dragging) setDx(e.clientX - start.current);
+          }}
+          onPointerUp={release}
+          onPointerCancel={() => {
+            setDx(0);
+            setDragging(false);
+          }}
+        >
+          <span
+            className={`pcard-initial avatar-${name.codePointAt(0)! % 4}`}
+            aria-hidden="true"
+          >
+            {name.slice(0, 1).toLocaleUpperCase("vi")}
+          </span>
+          <strong>{name}</strong>
+          <span className="muted">đang thanh minh</span>
+        </div>
+        <span
+          className="verdict-side hang"
+          style={{ opacity: 0.35 + Math.max(0, ratio) * 0.65 }}
+          aria-hidden="true"
+        >
+          <ChevronRight size={26} />
+          Treo cổ
+        </span>
+      </div>
+      <div className="verdict-buttons">
         <GameButton
           variant="secondary"
+          className="spare"
           disabled={busy}
-          onClick={() => void onCommand({ type: "verdict", execute: false })}
+          onClick={() => decide(false)}
         >
-          <HeartHandshake size={18} />
           Tha
         </GameButton>
         <GameButton
           variant="danger"
           disabled={busy}
-          onClick={() => void onCommand({ type: "verdict", execute: true })}
+          onClick={() => decide(true)}
         >
-          <Gavel size={18} />
           Treo cổ
         </GameButton>
       </div>
-    </ActionPanel>
+    </section>
   );
 }

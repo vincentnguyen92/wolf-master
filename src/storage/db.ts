@@ -5,6 +5,8 @@ export interface WizardSnapshot {
   config: GameConfig;
   step: number;
   counts: Record<RoleId, number>;
+  /** Roles dealt so far on the "Gán vai" step, by player id. */
+  assignment?: Record<string, RoleId>;
 }
 export class GameDatabase extends Dexie {
   games!: Table<Game, string>;

@@ -26,6 +26,17 @@ export const roleIcons = {
   villager: House,
   seer: Eye,
 };
+// Same accents as the .role-* classes in globals.css.
+export const roleColors: Record<RoleId, string> = {
+  werewolf: "#dab5a5",
+  wolf_cub: "#e3a98f",
+  guard: "#acd0bd",
+  seer: "#bfb3df",
+  witch: "#c7b6d5",
+  hunter: "#d1b991",
+  villager: "#ddc88e",
+  tanner: "#a9b7c0",
+};
 export const roleAssets: Record<RoleId, string> = Object.fromEntries(
   Object.keys(roles).map((id) => [id, `/assets/roles/${id}.svg`]),
 ) as Record<RoleId, string>;
@@ -230,5 +241,68 @@ export function ConfirmationDialog({
         </GameButton>
       </div>
     </dialog>
+  );
+}
+export interface CardAction {
+  label: string;
+  /** Accessible name, e.g. "Cắn Hà" for a button that only says "Cắn". */
+  name: string;
+  tone?: "gold" | "danger" | "calm";
+  onClick: () => void;
+}
+// A player at the table as a card: tap to pick, then act on the card itself.
+export function PlayerCard({
+  player,
+  selected = false,
+  disabled = false,
+  note,
+  tone,
+  action,
+  onClick,
+}: {
+  player: Player;
+  selected?: boolean;
+  disabled?: boolean;
+  note?: string;
+  tone?: "danger" | "calm";
+  action?: CardAction;
+  onClick?: () => void;
+}) {
+  return (
+    <div
+      className={`pcard ${selected ? "selected" : ""} ${disabled ? "locked" : ""} ${tone ?? ""}`}
+    >
+      <button
+        type="button"
+        className="pcard-tap"
+        disabled={disabled || !onClick}
+        onClick={onClick}
+        aria-pressed={onClick ? selected : undefined}
+        aria-label={`${player.name}${note ? `, ${note}` : ""}`}
+      >
+        <span
+          className={`pcard-initial avatar-${player.name.codePointAt(0)! % 4}`}
+          aria-hidden="true"
+        >
+          {player.alive ? (
+            player.name.slice(0, 1).toLocaleUpperCase("vi")
+          ) : (
+            <Skull size={26} />
+          )}
+        </span>
+        <span className="pcard-name">{player.name}</span>
+        {note && <span className="pcard-note">{note}</span>}
+      </button>
+      {action && (
+        <button
+          type="button"
+          className={`pcard-action ${action.tone ?? "gold"}`}
+          aria-label={action.name}
+          onClick={action.onClick}
+        >
+          {action.label}
+        </button>
+      )}
+    </div>
   );
 }

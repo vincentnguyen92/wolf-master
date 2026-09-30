@@ -31,10 +31,10 @@ test("UUID fallback supports Safari without crypto.randomUUID", async ({
     page.getByRole("heading", { name: "Đêm 1", exact: true }),
   ).toBeVisible();
   await page
-    .locator(".action-panel")
-    .getByRole("button", { name: /^Bình Còn sống/ })
+    .locator(".card-grid")
+    .getByRole("button", { name: "Bình", exact: true })
     .click();
-  await page.getByRole("button", { name: "Xác nhận & tiếp tục" }).click();
+  await page.getByRole("button", { name: "Cắn Bình", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Đêm nay, bảo vệ ai?" }),
   ).toBeVisible();

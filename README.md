@@ -34,17 +34,18 @@ Playwright tự chạy static server nếu cổng 3000 đang trống. Tắt dev 
 
 ## Tính năng MVP
 
-- Wizard 5 bước: tên làng, thêm/sửa/xóa/đổi thứ tự người chơi, chọn bộ vai, gán tay hoặc xáo, review kín.
+- Wizard 5 bước: tên làng, thêm/sửa/xóa/đổi thứ tự người chơi, chọn bộ vai (chạm lá bài để thêm, dấu trừ để bớt), chia vai bằng tay (chọn người rồi chạm lá vai; không chia ngẫu nhiên mặc định, tự chuyển sang người kế tiếp, lưu vào bản nháp), review kín.
 - Kiểm tra tên trùng, số người/số bài, ít nhất một Sói và phân bố phe hợp lệ.
 - Tám vai: Ma Sói, Sói con, Dân thường, Tiên tri, Bảo vệ, Phù thủy, Thợ săn, Chán đời. Cài đặt riêng theo vai, chỉ hiện với vai có trong bộ bài.
-- Lượt đêm động; chỉ hiển thị mục tiêu hợp lệ; tài nguyên Phù thủy và lịch bảo vệ được theo dõi. Vai trong bộ bài đã chết hoặc hết kỹ năng vẫn được nhắc "gọi giả" để quản trò không phải nhớ ai còn ai mất; lượt gọi giả không vào câu chuyện hay thống kê.
+- Thao tác trên thẻ: chạm thẻ người chơi, nút xác nhận (Cắn, Che, Bắn, Đầu độc, Mời lên) hiện ngay trên thẻ; thẻ Tiên tri lật ra kết quả; Phù thủy bấm "Cứu" trên thẻ nạn nhân; phán quyết ban ngày vuốt thẻ phải để treo cổ, trái để tha (vẫn có nút).
+- Lượt đêm động; người không chọn được vẫn hiện nhưng khoá kèm lý do (đồng bầy, không che liên tiếp, chính mình); tài nguyên Phù thủy và lịch bảo vệ được theo dõi. Vai trong bộ bài đã chết hoặc hết kỹ năng vẫn được nhắc "gọi giả" để quản trò không phải nhớ ai còn ai mất; lượt gọi giả không vào câu chuyện hay thống kê.
 - Sáng → thảo luận → chọn người bị nghi ngờ nhất → thanh minh → làng quyết định treo cổ hoặc tha → đêm tiếp theo. Làng tự đếm phiếu ngoài bàn; app chỉ ghi kết quả. Tha hoặc không đưa ai lên thì sang đêm ngay.
 - Hàng đợi phát súng Thợ săn; kiểm tra thắng sau khi xử lý hết trigger; quản trò xác nhận kết thúc.
 - Undo giao dịch khi đang chơi. Nhật ký (timeline có đánh dấu thao tác đã hủy, replay chỉ đọc từng giao dịch) xem ở màn hình tổng kết cuối ván.
 - Màn hình điều hành chỉ còn lượt hiện tại. Công tắc "Xem người chơi" trên thanh trên cùng mở sổ của quản trò, một chạm, không cần xác nhận, giữ nguyên khi refresh: cán cân Sói/người khác còn sống, từng ghế theo thứ tự ngồi với vai, dấu trong đêm (bị Sói nhắm, được bảo vệ, đã bị soi, được cứu, trúng độc), người đang thanh minh, bình Phù thủy, phát súng Thợ săn, người Bảo vệ không được che lại; người đã chết kèm nguyên nhân. Màn hình này chỉ dành cho quản trò, không có chế độ đưa cho người chơi xem.
 - Tổng kết, lật toàn bộ bài, hồ sơ và câu chuyện từng người, thống kê, câu chuyện tiếng Việt và copy nội dung.
 - Lịch sử nhiều ván, bản nháp wizard, khôi phục đúng lượt sau refresh, đóng tab hoặc khởi động lại trình duyệt.
-- Art SVG nguyên bản, thẻ vai riêng, palette ngày/đêm, nút lớn, reduced motion.
+- Art SVG nguyên bản, thẻ vai riêng, palette ngày/đêm, font Playfair Display và Be Vietnam Pro (đóng gói lúc build qua `next/font`, không tải từ Google khi chạy), nút lớn, reduced motion.
 
 ## Stack và kiến trúc
 
@@ -171,7 +172,7 @@ Ván ghi phiếu từng người từ phiên bản trước vẫn phát lại v�
 ## Kiểm chứng
 
 - **67 tests Vitest**: các luật bắt buộc, chết đồng thời, độc xuyên defense, cả hai potion, không tái dùng, cấu hình guard/self-heal, vai chết, queue, parity + Hunter, Undo theo batch, replay, tính bất biến, Sói con, Chán đời, cài đặt Thợ săn, xử án ban ngày, gọi giả, ván cũ ghi phiếu, IndexedDB và UUID fallback.
-- **10 tests Playwright trên Chromium**: wizard và ván hai đêm đến victory; ván có Sói con/Chán đời; gọi giả Tiên tri đã chết; vuốt để xoá ván; ván mới cùng người chơi; random/manual assignment; role reveal, story và history; reload/offline; sổ người chơi; bản nháp reload tức thời; restart browser; layout 360/390/430/768/1280; manifest; keyboard, axe WCAG A/AA (bỏ qua rule `meta-viewport` vì cố ý tắt zoom), khoá zoom hai ngón và giả lập thiếu `randomUUID`.
+- **10 tests Playwright trên Chromium**: wizard và ván hai đêm đến victory; ván có Sói con/Chán đời; gọi giả Tiên tri đã chết; vuốt để xoá ván; ván mới cùng người chơi; chia vai bằng tay và giữ khi reload; vuốt phán quyết; role reveal, story và history; reload/offline; sổ người chơi; bản nháp reload tức thời; restart browser; layout 360/390/430/768/1280; manifest; keyboard, axe WCAG A/AA (bỏ qua rule `meta-viewport` vì cố ý tắt zoom), khoá zoom hai ngón và giả lập thiếu `randomUUID`.
 - Không dùng snapshot UI như bằng chứng logic. Không tuyên bố accessibility đầy đủ chỉ từ axe/screenshots.
 - GitHub Actions chạy install, tests, lint, build và browser tests.
 - Xem [báo cáo audit](docs/AUDIT.md).

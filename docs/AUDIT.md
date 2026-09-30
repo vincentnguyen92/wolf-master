@@ -7,7 +7,7 @@ Phạm vi: implementation thật từ repository trống; engine, event log, per
 | Bước | Trạng thái | Bằng chứng |
 |---|---|---|
 | 1. Trang chủ, tạo ván | Pass | [Trang chủ](screenshots/01-home-390.png) |
-| 2. Thêm 8 người, chọn bộ vai, gán tay và review kín | Pass | [Review vai](screenshots/02-review-390.png) |
+| 2. Thêm 8 người, chọn bộ vai bằng lá bài, chia vai bằng tay và review kín | Pass | [Review vai](screenshots/02-review-390.png) |
 | 3. Đêm 1: chọn, Undo, bảo vệ, soi và giữ bình | Pass | [Điều hành đêm](screenshots/03-night-390.png) |
 | 4. Sáng, thảo luận, chọn người bị nghi ngờ, thanh minh, treo cổ | Pass | [Sáng ngày 1](screenshots/04-morning-390.png), [Thanh minh](screenshots/08-trial-360.png) |
 | 5. Đêm 2, poison, victory, confirm, story/reveal/stats/history | Pass | [Tổng kết](screenshots/05-ending-390.png), [Lật bài](screenshots/09-reveal-390.png), assertions trong E2E |

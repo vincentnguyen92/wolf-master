@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
+  EyeOff,
   Plus,
-  Shuffle,
   Trash2,
   ChevronUp,
 } from "lucide-react";
@@ -14,9 +14,14 @@ import {
   type GameSettings,
   type RoleId,
 } from "../domain/types";
-import { roleList, roles } from "../roles/registry";
-import { GameButton, RoleCard, SecretBadge } from "../components/ui";
-import { shuffled } from "../lib/demo";
+import { roleList, roles, teamNames } from "../roles/registry";
+import {
+  GameButton,
+  RoleCard,
+  SecretBadge,
+  roleAssets,
+  roleColors,
+} from "../components/ui";
 import { newId } from "../lib/id";
 import { validateConfig } from "../engine/engine";
 const roleSettings: {
@@ -147,6 +152,14 @@ function SetupContent({
   );
   const latest = useRef(snapshot);
   const { config: draft, step, counts } = snapshot;
+  const assignment = snapshot.assignment ?? {};
+  const firstUnassigned = (dealt: Record<string, RoleId>) =>
+    draft.players.find((p) => !dealt[p.id])?.id ?? null;
+  // The seat the next tapped role card goes to on the "Gán vai" step.
+  const [seat, setSeat] = useState<string | null>(() =>
+    firstUnassigned(assignment),
+  );
+  const [coverDealt, setCoverDealt] = useState(false);
   const updateSnapshot = (patch: Partial<WizardSnapshot>) => {
     const next = { ...latest.current, ...patch };
     try {
@@ -161,17 +174,39 @@ function SetupContent({
   const setStep = (step: number) => updateSnapshot({ step });
   const setCounts = (counts: Record<RoleId, number>) =>
     updateSnapshot({ counts });
+  const setAssignment = (assignment: Record<string, RoleId>) =>
+    updateSnapshot({ assignment });
   useEffect(() => {
     db.drafts
-      .put({ id: gameId, config: draft, step, counts })
+      .put({
+        id: gameId,
+        config: draft,
+        step,
+        counts,
+        assignment: snapshot.assignment,
+      })
       .catch((e: unknown) =>
         setError(`Chưa lưu được bản nháp: ${(e as Error).message}`),
       );
-  }, [gameId, draft, step, counts]);
+  }, [gameId, draft, step, counts, snapshot.assignment]);
+  const dealt = draft.players.filter((p) => assignment[p.id]).length;
   const total = Object.values(counts).reduce((a, b) => a + b, 0),
     wolves = roleList
       .filter((r) => r.team === "wolves")
       .reduce((sum, r) => sum + counts[r.id], 0);
+  const n = draft.players.length;
+  const deckSlots = roleList
+    .flatMap((r) => Array<string>(counts[r.id]).fill(roleColors[r.id]))
+    .concat(Array<string>(Math.max(0, n - total)).fill("var(--line)"))
+    .slice(0, Math.max(n, total));
+  const deckReady = total === n && counts.werewolf > 0;
+  const deckHint = !counts.werewolf
+    ? "Cần ít nhất một Ma Sói."
+    : total < n
+      ? `Còn thiếu ${n - total} lá.`
+      : total > n
+        ? `Thừa ${total - n} lá, bớt bớt đi.`
+        : `${wolves} Sói, ${n - wolves} người còn lại.`;
   const update = (patch: Partial<GameConfig>) =>
     setDraft({ ...draft, ...patch });
   const addPlayer = () => {
@@ -225,14 +260,39 @@ function SetupContent({
         const deck = roleList.flatMap((r) =>
           Array<RoleId>(counts[r.id]).fill(r.id),
         );
+        // Checks the composition only; the moderator deals the cards next.
+        validateConfig(
+          {
+            ...draft,
+            players: draft.players.map((p, i) => ({ ...p, role: deck[i] })),
+          },
+          true,
+        );
+        const left = { ...counts },
+          kept: Record<string, RoleId> = {};
+        for (const p of draft.players) {
+          const role = assignment[p.id];
+          if (role && left[role] > 0) {
+            kept[p.id] = role;
+            left[role]--;
+          }
+        }
+        setAssignment(kept);
+        setSeat(firstUnassigned(kept));
+      }
+      if (step === 3) {
+        const missing = draft.players.filter((p) => !assignment[p.id]).length;
+        if (missing) throw new Error(`Còn ${missing} người chưa có vai.`);
         next = {
           ...draft,
-          players: draft.players.map((p, i) => ({ ...p, role: deck[i] })),
+          players: draft.players.map((p) => ({
+            ...p,
+            role: assignment[p.id],
+          })),
         };
         validateConfig(next, true);
         setDraft(next);
       }
-      if (step === 3) validateConfig(draft, true);
       if (await onSave(next)) setStep(step + 1);
     } catch (e) {
       setError((e as Error).message);
@@ -358,54 +418,77 @@ function SetupContent({
         )}
         {step === 2 && (
           <>
-            <div className="count-banner">
+            <div className="deck-bar">
+              <div className="deck-slots" aria-hidden="true">
+                {deckSlots.map((color, i) => (
+                  <span key={i} style={{ background: color }} />
+                ))}
+              </div>
               <strong>
                 {total} / {draft.players.length} lá bài
               </strong>
-              <span>
-                {wolves} Sói · {total - wolves - counts.tanner} Dân
-                {counts.tanner ? ` · ${counts.tanner} Chán đời` : ""}
-              </span>
             </div>
-            <div className="role-counts">
+            <p className="muted deck-help">
+              Chạm lá để thêm một. Chạm dấu trừ để bớt.
+            </p>
+            <div className="role-deck">
               {roleList.map((r) => {
+                const count = counts[r.id],
+                  full =
+                    total >= draft.players.length ||
+                    (r.id !== "villager" && r.id !== "werewolf" && count >= 1);
                 return (
-                  <div key={r.id} className={`role-count role-${r.id}`}>
-                    <div>
-                      <strong>{r.name}</strong>
-                      <small>{r.description}</small>
-                    </div>
-                    <div className="counter">
-                      <GameButton
-                        aria-label={`Giảm ${r.name}`}
-                        variant="secondary"
-                        disabled={!counts[r.id]}
-                        onClick={() =>
-                          setCounts({ ...counts, [r.id]: counts[r.id] - 1 })
-                        }
-                      >
-                        −
-                      </GameButton>
-                      <span>{counts[r.id]}</span>
-                      <GameButton
-                        aria-label={`Thêm ${r.name}`}
-                        variant="secondary"
-                        disabled={
-                          r.id !== "villager" && r.id !== "werewolf"
-                            ? counts[r.id] >= 1
-                            : total >= draft.players.length
-                        }
-                        onClick={() =>
-                          setCounts({ ...counts, [r.id]: counts[r.id] + 1 })
-                        }
-                      >
-                        +
-                      </GameButton>
-                    </div>
+                  <div
+                    key={r.id}
+                    className={`deck-card role-${r.id} ${count ? "on" : ""}`}
+                  >
+                    <button
+                      type="button"
+                      className="deck-add"
+                      disabled={full}
+                      title={r.description}
+                      aria-label={`Thêm ${r.name}`}
+                      onClick={() =>
+                        setCounts({ ...counts, [r.id]: count + 1 })
+                      }
+                    >
+                      {/* Local original SVG illustrations are intentional native images. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={roleAssets[r.id]}
+                        alt=""
+                        width={62}
+                        height={70}
+                      />
+                      <span className="deck-name">{r.name}</span>
+                      <span className="deck-team">
+                        {r.team === "neutral"
+                          ? "Phe thứ ba"
+                          : teamNames[r.team]}
+                      </span>
+                    </button>
+                    {count > 0 && (
+                      <>
+                        <span className="deck-count" aria-label={`${count} lá`}>
+                          {count}
+                        </span>
+                        <button
+                          type="button"
+                          className="deck-minus"
+                          aria-label={`Bớt ${r.name}`}
+                          onClick={() =>
+                            setCounts({ ...counts, [r.id]: count - 1 })
+                          }
+                        >
+                          <span>−</span>
+                        </button>
+                      </>
+                    )}
                   </div>
                 );
               })}
             </div>
+            <p className={`deck-hint ${deckReady ? "" : "warn"}`}>{deckHint}</p>
             <section className="role-settings" aria-labelledby="role-settings">
               <h3 id="role-settings">Cài đặt vai</h3>
               <fieldset className="role-settings-group role-general">
@@ -465,58 +548,127 @@ function SetupContent({
         {step === 3 && (
           <>
             <p className="muted">
-              Gán theo bộ bài thực tế hoặc xáo ngẫu nhiên. Đổi vai của một người
-              sẽ hoán đổi lá bài với người đang giữ vai đó.
+              {seat
+                ? `Chọn vai cho ${draft.players.find((p) => p.id === seat)?.name} ở các lá bên dưới.`
+                : dealt === draft.players.length
+                  ? "Đã chia đủ. Chạm một người để đổi vai."
+                  : "Chạm một người để chọn vai cho họ."}
             </p>
-            <GameButton
-              variant="secondary"
-              onClick={() => {
-                const deck = shuffled(draft.players.map((p) => p.role));
-                update({
-                  players: draft.players.map((p, i) => ({
-                    ...p,
-                    role: deck[i],
-                  })),
-                });
-                setRevealed(false);
-              }}
-            >
-              <Shuffle size={18} />
-              Xáo vai ngẫu nhiên
-            </GameButton>
-            <div className="assignment-list">
-              {draft.players.map((p) => (
-                <label key={p.id}>
-                  <strong>{p.name}</strong>
-                  <select
-                    aria-label={`Vai của ${p.name}`}
-                    value={p.role}
-                    onChange={(e) => {
-                      const target = e.target.value as RoleId,
-                        other = draft.players.find(
-                          (x) => x.role === target && x.id !== p.id,
-                        );
-                      update({
-                        players: draft.players.map((x) =>
-                          x.id === p.id
-                            ? { ...x, role: target }
-                            : x.id === other?.id
-                              ? { ...x, role: p.role }
-                              : x,
-                        ),
-                      });
-                    }}
+            <div className="deal-bar">
+              <strong>
+                Đã chia {dealt} / {draft.players.length} lá
+              </strong>
+              <GameButton
+                variant="ghost"
+                aria-pressed={coverDealt}
+                onClick={() => setCoverDealt(!coverDealt)}
+              >
+                <EyeOff size={16} />
+                {coverDealt ? "Hiện vai" : "Úp vai đã chia"}
+              </GameButton>
+            </div>
+            <div className="deal-grid">
+              {draft.players.map((p) => {
+                const role = assignment[p.id],
+                  picked = seat === p.id;
+                return (
+                  <div
+                    key={p.id}
+                    className={`deal-seat ${role ? "dealt" : ""} ${role && coverDealt ? "covered" : ""} ${picked ? "picked" : ""}`}
                   >
-                    {roleList
-                      .filter((r) => counts[r.id] > 0)
-                      .map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.name}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-              ))}
+                    <button
+                      type="button"
+                      className="deal-seat-tap"
+                      aria-pressed={picked}
+                      aria-label={`${p.name}: ${role ? (coverDealt ? "đã có vai" : roles[role].name) : "chưa có vai"}`}
+                      onClick={() => setSeat(picked ? null : p.id)}
+                    >
+                      {role ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={
+                            coverDealt
+                              ? "/assets/icons/card-back.svg"
+                              : roleAssets[role]
+                          }
+                          alt=""
+                          width={48}
+                          height={54}
+                        />
+                      ) : (
+                        <Plus size={22} aria-hidden="true" />
+                      )}
+                      {role && !coverDealt && (
+                        <span className={`deal-seat-role role-${role}`}>
+                          {roles[role].name}
+                        </span>
+                      )}
+                      <span className="deal-seat-name">{p.name}</span>
+                    </button>
+                    {picked && role && (
+                      <button
+                        type="button"
+                        className="deal-seat-return"
+                        onClick={() => {
+                          const next = { ...assignment };
+                          delete next[p.id];
+                          setAssignment(next);
+                        }}
+                      >
+                        Trả lá
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <h3 className="tray-title">
+              {seat
+                ? `Vai của ${draft.players.find((p) => p.id === seat)?.name}`
+                : "Các lá còn lại"}
+            </h3>
+            <div className="role-tray">
+              {roleList
+                .filter((r) => counts[r.id] > 0)
+                .map((r) => {
+                  const left =
+                    counts[r.id] -
+                    Object.values(assignment).filter((x) => x === r.id).length;
+                  const off = !seat || left <= 0;
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      className={`tray-card role-${r.id} ${off ? "" : "ready"}`}
+                      disabled={off}
+                      aria-label={`Chia ${r.name}`}
+                      onClick={() => {
+                        if (!seat) return;
+                        const next = { ...assignment, [seat]: r.id };
+                        setAssignment(next);
+                        // Move on to the next seat still waiting for a card.
+                        const order = draft.players.map((p) => p.id),
+                          from = order.indexOf(seat);
+                        setSeat(
+                          order
+                            .slice(from + 1)
+                            .concat(order.slice(0, from + 1))
+                            .find((id) => !next[id]) ?? null,
+                        );
+                      }}
+                    >
+                      <span className="tray-left">{left}</span>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={roleAssets[r.id]}
+                        alt=""
+                        width={44}
+                        height={50}
+                      />
+                      <span className="tray-name">{r.name}</span>
+                    </button>
+                  );
+                })}
             </div>
           </>
         )}
