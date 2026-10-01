@@ -649,3 +649,23 @@ async function drag(page: Page, target: Locator, dx: number) {
     await page.mouse.move(x + (dx * step) / 8, y);
   await page.mouse.up();
 }
+test("tapping a button gives a short vibration", async ({ page }) => {
+  await page.addInitScript(() => {
+    const calls: unknown[] = [];
+    Object.defineProperty(window, "__buzz", { value: calls });
+    Object.defineProperty(navigator, "vibrate", {
+      configurable: true,
+      value: (pattern: unknown) => {
+        calls.push(pattern);
+        return true;
+      },
+    });
+  });
+  await page.goto("/");
+  const buzzes = () =>
+    page.evaluate(() => (window as unknown as { __buzz: unknown[] }).__buzz);
+  await page.getByRole("heading", { name: /Những ngọn đèn/ }).click();
+  expect(await buzzes()).toEqual([]);
+  await page.getByRole("button", { name: "Bộ bài của làng" }).click();
+  await expect.poll(buzzes).toEqual([10]);
+});

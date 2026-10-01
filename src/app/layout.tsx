@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Be_Vietnam_Pro, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { ZoomLock } from "../components/ZoomLock";
+import { Haptics } from "../components/Haptics";
 // Bundled at build time so the offline PWA never fetches fonts.
 const body = Be_Vietnam_Pro({
   subsets: ["latin", "vietnamese"],
@@ -40,6 +41,7 @@ export default function RootLayout({
     <html lang="vi" className={`${body.variable} ${title.variable}`}>
       <body>
         <ZoomLock />
+        <Haptics />
         {children}
       </body>
     </html>
