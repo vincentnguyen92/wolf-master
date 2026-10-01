@@ -51,6 +51,12 @@ async function tap(page: Page, labels: string[]) {
   for (const label of labels)
     await page.getByRole("button", { name: label, exact: true }).click();
 }
+// Entrance animations fade content in; check colours once they have finished.
+async function settled(page: Page) {
+  await page.evaluate(() =>
+    Promise.all(document.getAnimations().map((a) => a.finished)),
+  );
+}
 async function inspectSize(page: Page, name: string, width: number) {
   await page.setViewportSize({ width, height: 900 });
   await expect
@@ -407,6 +413,7 @@ test("keyboard access, install manifest and automated accessibility", async ({
   ).toBe(true);
   await page.keyboard.press("Tab");
   await expect(page.locator(":focus")).toHaveClass("brand");
+  await settled(page);
   let results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
     // Zoom is disabled on purpose at the moderator's request.
@@ -417,6 +424,7 @@ test("keyboard access, install manifest and automated accessibility", async ({
   await expect(
     page.getByRole("heading", { name: "Đêm 1", exact: true }),
   ).toBeVisible();
+  await settled(page);
   results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
     // Zoom is disabled on purpose at the moderator's request.
@@ -424,6 +432,7 @@ test("keyboard access, install manifest and automated accessibility", async ({
     .analyze();
   expect(results.violations).toEqual([]);
   await page.getByRole("switch", { name: "Xem người chơi" }).click();
+  await settled(page);
   results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
     // Zoom is disabled on purpose at the moderator's request.

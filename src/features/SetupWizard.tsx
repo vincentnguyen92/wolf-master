@@ -478,7 +478,11 @@ function SetupContent({
                     />
                     {count > 0 && (
                       <>
-                        <span className="deck-count" aria-label={`${count} lá`}>
+                        <span
+                          key={count}
+                          className="deck-count"
+                          aria-label={`${count} lá`}
+                        >
                           {count}
                         </span>
                         <button

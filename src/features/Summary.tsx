@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { ArrowLeft, Trophy, Undo2, BookOpen, RotateCcw } from "lucide-react";
 import type { Game, GameState } from "../domain/types";
 import { GameButton, PhaseHeader, roleAssets } from "../components/ui";
@@ -119,8 +119,12 @@ export function Summary({
 function CardReveal({ state }: { state: GameState }) {
   return (
     <div className="card-reveal">
-      {state.players.map((p) => (
-        <div key={p.id} className={`reveal-seat ${p.alive ? "" : "dead"}`}>
+      {state.players.map((p, i) => (
+        <div
+          key={p.id}
+          className={`reveal-seat ${p.alive ? "" : "dead"}`}
+          style={{ "--i": i } as CSSProperties}
+        >
           {/* Local card scans are intentional native images. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img

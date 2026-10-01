@@ -3,6 +3,7 @@ import {
   useEffect,
   useRef,
   type ButtonHTMLAttributes,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 import { LockKeyhole, Skull, Check } from "lucide-react";
@@ -187,10 +188,14 @@ export function RoundTable({
           <div
             key={i}
             className="rt-seat"
-            style={{
-              left: `${50 + 41 * Math.cos(a)}%`,
-              top: `${50 + 41 * Math.sin(a)}%`,
-            }}
+            style={
+              {
+                left: `${50 + 41 * Math.cos(a)}%`,
+                top: `${50 + 41 * Math.sin(a)}%`,
+                // Seats fill clockwise when the table first appears.
+                "--i": i,
+              } as CSSProperties
+            }
           >
             {seat}
           </div>
