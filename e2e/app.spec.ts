@@ -669,3 +669,24 @@ test("tapping a button gives a short vibration", async ({ page }) => {
   await page.getByRole("button", { name: "Bộ bài của làng" }).click();
   await expect.poll(buzzes).toEqual([10]);
 });
+test("without the Vibration API, a tap flips the hidden iOS haptic switch", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(Navigator.prototype, "vibrate", {
+      configurable: true,
+      value: undefined,
+    });
+  });
+  await page.goto("/");
+  const haptic = page.locator("[data-haptic] input[switch]");
+  await expect(haptic).toHaveCount(1);
+  await expect(haptic).not.toBeChecked();
+  await page.getByRole("heading", { name: /Những ngọn đèn/ }).click();
+  await expect(haptic).not.toBeChecked();
+  await page.getByRole("button", { name: "Bộ bài của làng" }).click();
+  // Exactly one flip per tap, not a loop from the switch's own click.
+  await expect(haptic).toBeChecked();
+  await page.getByRole("button", { name: "Về trang chủ" }).click();
+  await expect(haptic).not.toBeChecked();
+});
