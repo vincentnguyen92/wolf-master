@@ -31,9 +31,9 @@ export function eventText(e: GameEvent, s: GameState): string {
           : "Bầy Sói không chọn mục tiêu.",
         guard: a.targetId
           ? `${name(a.actorId)} bảo vệ ${name(a.targetId)}.`
-          : "Bảo vệ bỏ qua lượt này.",
+          : "Người bảo vệ bỏ qua lượt này.",
         seer: a.targetId
-          ? `${name(a.actorId)} soi ${name(a.targetId)}: ${a.result ? "Ma Sói" : "không phải Ma Sói"}.`
+          ? `${name(a.actorId)} soi ${name(a.targetId)}: ${a.result ? "Sói" : "không phải Sói"}.`
           : "Tiên tri bỏ qua lượt này.",
         witch: [
           a.heal
@@ -52,7 +52,7 @@ export function eventText(e: GameEvent, s: GameState): string {
     case "FAKE_CALL":
       return `Quản trò gọi giả ${roles[e.payload.kind].name} để giữ bí mật.`;
     case "WOLF_ATTACK_BLOCKED":
-      return `Đòn cắn nhắm vào ${name(e.payload.targetId)} bị chặn bởi ${[e.payload.guardId ? "Bảo vệ" : "", e.payload.witchId ? "bình cứu của Phù thủy" : ""].filter(Boolean).join(" và ")}.`;
+      return `Đòn cắn nhắm vào ${name(e.payload.targetId)} bị chặn bởi ${[e.payload.guardId ? "Người bảo vệ" : "", e.payload.witchId ? "bình cứu của Phù thủy" : ""].filter(Boolean).join(" và ")}.`;
     case "PLAYER_KILLED": {
       const player = s.players.find((p) => p.id === e.payload.playerId);
       const silenced =

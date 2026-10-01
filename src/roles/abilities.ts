@@ -26,7 +26,10 @@ export function canWitchHeal(state: GameState, actor: Player): boolean {
 }
 export function seerResult(state: GameState, targetId: string): boolean {
   const role = state.players.find((p) => p.id === targetId)?.role;
-  return role === "werewolf" || role === "wolf_cub";
+  return (
+    role === "werewolf" ||
+    (role === "wolf_cub" && state.settings.seerSeesWolfCub)
+  );
 }
 export function resolveWitch(
   state: GameState,

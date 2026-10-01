@@ -1,6 +1,7 @@
 "use client";
 import { NightTurn } from "./NightTurn";
 import { Defense, Nomination } from "./Trial";
+import { Morning, Verdict } from "./Day";
 import { useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -26,7 +27,7 @@ import {
   PhaseHeader,
   SecretBadge,
 } from "../components/ui";
-import { eventText, playerName } from "../story/narrative";
+import { playerName } from "../story/narrative";
 import { effectiveEvents } from "../events/replay";
 import { Roster } from "./Roster";
 export function Gameplay({
@@ -152,63 +153,20 @@ export function Gameplay({
             <Nomination state={state} onCommand={onCommand} busy={busy} />
           ) : state.stage === "defense" ? (
             <Defense state={state} onCommand={onCommand} busy={busy} />
+          ) : state.stage === "morning" ? (
+            <Morning
+              game={game}
+              state={state}
+              onCommand={onCommand}
+              busy={busy}
+            />
           ) : (
-            <ActionPanel
-              title={
-                state.stage === "morning"
-                  ? "Bình minh trước cửa làng."
-                  : "Làng đã quyết định."
-              }
-              description={
-                state.stage === "morning"
-                  ? state.morningDeaths.length
-                    ? `Đêm qua: ${state.morningDeaths.map((id) => playerName(state, id)).join(", ")} đã chết.`
-                    : "Đêm qua không ai chết."
-                  : "Kiểm tra kết quả trước khi bước vào đêm tiếp theo."
-              }
-            >
-              {state.stage === "morning" && (
-                <ul className="night-reasons">
-                  {effectiveEvents(game.events)
-                    .filter(
-                      (e) =>
-                        e.round === state.round &&
-                        (e.type === "WOLF_ATTACK_BLOCKED" ||
-                          (e.type === "PLAYER_KILLED" && e.phase === "night")),
-                    )
-                    .map((e) => (
-                      <li key={e.id}>{eventText(e, state)}</li>
-                    ))}
-                </ul>
-              )}
-              {state.stage === "verdict" && (
-                <p>
-                  {(() => {
-                    const event = effectiveEvents(game.events).findLast(
-                      (e) =>
-                        e.type === "VERDICT_REACHED" ||
-                        e.type === "VOTING_RESOLVED",
-                    );
-                    return event?.type === "VERDICT_REACHED" &&
-                      event.payload.executed
-                      ? `${playerName(state, event.payload.targetId)} đã bị treo cổ.`
-                      : event?.type === "VOTING_RESOLVED" &&
-                          event.payload.targetId
-                        ? `${playerName(state, event.payload.targetId)} đã bị loại.`
-                        : "Không ai bị loại.";
-                  })()}
-                </p>
-              )}
-              <GameButton
-                disabled={busy}
-                onClick={() => void onCommand({ type: "advance" })}
-              >
-                {state.stage === "morning"
-                  ? "Bắt đầu thảo luận"
-                  : `Bắt đầu đêm ${state.round + 1}`}
-                <ArrowRight size={18} />
-              </GameButton>
-            </ActionPanel>
+            <Verdict
+              game={game}
+              state={state}
+              onCommand={onCommand}
+              busy={busy}
+            />
           )}
           {last?.type === "NIGHT_ACTION" &&
             last.round === state.round &&
@@ -219,8 +177,8 @@ export function Gameplay({
                   Vừa soi {playerName(state, last.payload.targetId)}:{" "}
                   {last.payload.targetId
                     ? last.payload.result
-                      ? "Ma Sói"
-                      : "không phải Ma Sói"
+                      ? "Sói"
+                      : "không phải Sói"
                     : "bỏ qua"}
                   .
                 </span>

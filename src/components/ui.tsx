@@ -5,40 +5,11 @@ import {
   type ButtonHTMLAttributes,
   type ReactNode,
 } from "react";
-import {
-  Eye,
-  Shield,
-  FlaskConical,
-  Crosshair,
-  House,
-  Moon,
-  LockKeyhole,
-  Skull,
-  Check,
-} from "lucide-react";
+import { LockKeyhole, Skull, Check } from "lucide-react";
 import type { Player, RoleId } from "../domain/types";
-import { roles, teamNames } from "../roles/registry";
-export const roleIcons = {
-  werewolf: Moon,
-  guard: Shield,
-  witch: FlaskConical,
-  hunter: Crosshair,
-  villager: House,
-  seer: Eye,
-};
-// Same accents as the .role-* classes in globals.css.
-export const roleColors: Record<RoleId, string> = {
-  werewolf: "#dab5a5",
-  wolf_cub: "#e3a98f",
-  guard: "#acd0bd",
-  seer: "#bfb3df",
-  witch: "#c7b6d5",
-  hunter: "#d1b991",
-  villager: "#ddc88e",
-  tanner: "#a9b7c0",
-};
+import { roles } from "../roles/registry";
 export const roleAssets: Record<RoleId, string> = Object.fromEntries(
-  Object.keys(roles).map((id) => [id, `/assets/roles/${id}.svg`]),
+  Object.keys(roles).map((id) => [id, `/assets/cards/${id}.webp`]),
 ) as Record<RoleId, string>;
 export function GameButton({
   children,
@@ -67,55 +38,6 @@ export function SecretBadge() {
 }
 export function AbilityBadge({ children }: { children: ReactNode }) {
   return <span className="ability-badge">{children}</span>;
-}
-export function RoleCard({
-  role,
-  hidden = false,
-  active = false,
-  dead = false,
-  exhausted = false,
-  children,
-}: {
-  role: RoleId;
-  hidden?: boolean;
-  active?: boolean;
-  dead?: boolean;
-  exhausted?: boolean;
-  children?: ReactNode;
-}) {
-  const r = roles[role];
-  return (
-    <article
-      className={`role-card ${hidden ? "role-hidden" : `role-${role}`} ${active ? "active" : ""} ${dead ? "dead" : ""} ${hidden ? "hidden-card" : ""}`}
-    >
-      {/* Local original SVG illustrations are intentional native images. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={hidden ? "/assets/icons/card-back.svg" : roleAssets[role]}
-        alt=""
-        width={160}
-        height={160}
-      />
-      <div>
-        <span className="eyebrow">
-          {hidden
-            ? "VAI CHƯA LẬT"
-            : r.team === "neutral"
-              ? "PHE THỨ BA"
-              : teamNames[r.team].toUpperCase()}
-        </span>
-        <h3>{hidden ? "Bí mật" : r.name}</h3>
-        <p>{hidden ? "Chỉ quản trò được xem lá bài này." : r.description}</p>
-        {!hidden && (
-          <div className="badges">
-            {dead && <AbilityBadge>Đã chết</AbilityBadge>}
-            {exhausted && <AbilityBadge>Đã hết kỹ năng</AbilityBadge>}
-            {children}
-          </div>
-        )}
-      </div>
-    </article>
-  );
 }
 export function PlayerToken({
   player,
@@ -243,66 +165,80 @@ export function ConfirmationDialog({
     </dialog>
   );
 }
-export interface CardAction {
-  label: string;
-  /** Accessible name, e.g. "Cắn Hà" for a button that only says "Cắn". */
-  name: string;
-  tone?: "gold" | "danger" | "calm";
-  onClick: () => void;
+// Players sit around a round table in seating order, clockwise from the top.
+// The middle of the table is where the moderator confirms what they picked.
+export function RoundTable({
+  seats,
+  center,
+  day = false,
+}: {
+  seats: ReactNode[];
+  center?: ReactNode;
+  day?: boolean;
+}) {
+  const n = seats.length;
+  // Seats shrink as the table fills so neighbours never overlap.
+  const size = n <= 8 ? "large" : n <= 12 ? "medium" : "small";
+  return (
+    <div className={`round-table ${size} ${day ? "day" : ""}`}>
+      {seats.map((seat, i) => {
+        const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
+        return (
+          <div
+            key={i}
+            className="rt-seat"
+            style={{
+              left: `${50 + 41 * Math.cos(a)}%`,
+              top: `${50 + 41 * Math.sin(a)}%`,
+            }}
+          >
+            {seat}
+          </div>
+        );
+      })}
+      <div className="rt-center">{center}</div>
+    </div>
+  );
 }
-// A player at the table as a card: tap to pick, then act on the card itself.
-export function PlayerCard({
+export function SeatToken({
   player,
   selected = false,
   disabled = false,
   note,
   tone,
-  action,
+  label,
   onClick,
 }: {
-  player: Player;
+  player: Pick<Player, "name" | "alive">;
   selected?: boolean;
   disabled?: boolean;
   note?: string;
-  tone?: "danger" | "calm";
-  action?: CardAction;
+  tone?: "danger" | "calm" | "magic";
+  label?: string;
   onClick?: () => void;
 }) {
   return (
-    <div
-      className={`pcard ${selected ? "selected" : ""} ${disabled ? "locked" : ""} ${tone ?? ""}`}
+    <span
+      className={`seat-token ${selected ? "selected" : ""} ${disabled ? "locked" : ""} ${player.alive ? "" : "dead"} ${tone ?? ""}`}
     >
       <button
         type="button"
-        className="pcard-tap"
+        className={`seat-face avatar-${player.name.codePointAt(0)! % 4}`}
         disabled={disabled || !onClick}
-        onClick={onClick}
         aria-pressed={onClick ? selected : undefined}
-        aria-label={`${player.name}${note ? `, ${note}` : ""}`}
+        aria-label={label ?? `${player.name}${note ? `, ${note}` : ""}`}
+        onClick={onClick}
       >
-        <span
-          className={`pcard-initial avatar-${player.name.codePointAt(0)! % 4}`}
-          aria-hidden="true"
-        >
-          {player.alive ? (
-            player.name.slice(0, 1).toLocaleUpperCase("vi")
-          ) : (
-            <Skull size={26} />
-          )}
-        </span>
-        <span className="pcard-name">{player.name}</span>
-        {note && <span className="pcard-note">{note}</span>}
+        {player.alive ? (
+          // Placeholder seats ("Người 3") show their number, not a row of N.
+          (/^Người (\d+)$/.exec(player.name)?.[1] ??
+          player.name.slice(0, 1).toLocaleUpperCase("vi"))
+        ) : (
+          <Skull size={20} aria-hidden="true" />
+        )}
       </button>
-      {action && (
-        <button
-          type="button"
-          className={`pcard-action ${action.tone ?? "gold"}`}
-          aria-label={action.name}
-          onClick={action.onClick}
-        >
-          {action.label}
-        </button>
-      )}
-    </div>
+      <span className="seat-name">{player.name}</span>
+      {note && <span className="seat-note">{note}</span>}
+    </span>
   );
 }

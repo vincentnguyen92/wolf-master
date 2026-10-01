@@ -72,7 +72,7 @@ function Seat({ state, player: p }: { state: GameState; player: Player }) {
     <li className={`seat role-${p.role}`}>
       {/* Local original SVG illustrations are intentional native images. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={roleAssets[p.role]} alt="" width={52} height={58} />
+      <img src={roleAssets[p.role]} alt="" width={44} height={66} />
       <div className="seat-body">
         <div className="seat-name">
           <strong>{p.name}</strong>

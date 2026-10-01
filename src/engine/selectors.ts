@@ -74,17 +74,23 @@ export const getCurrentAction = (s: GameState) => getAvailableActions(s)[0];
 export function evaluateVictory(s: GameState): VictoryResult | undefined {
   if (s.phase === "setup" || s.pendingHunters.length) return;
   const tanner = s.players.find(
-    (p) => p.role === "tanner" && p.death?.cause === "VOTE_EXECUTION",
+    (p) =>
+      p.role === "tanner" &&
+      p.death &&
+      (p.death.cause === "VOTE_EXECUTION" || s.settings.tannerWinsOnAnyDeath),
   );
   if (tanner)
     return {
       team: "neutral",
-      reason: `${tanner.name} (Chán đời) bị làng treo cổ đúng như mong muốn.`,
+      reason:
+        tanner.death?.cause === "VOTE_EXECUTION"
+          ? `${tanner.name} (Kẻ chán đời) bị làng treo cổ đúng như mong muốn.`
+          : `${tanner.name} (Kẻ chán đời) đã chết đúng như mong muốn.`,
     };
   const alive = s.players.filter((p) => p.alive);
   const wolves = alive.filter((p) => roles[p.role].team === "wolves").length;
   if (wolves === 0)
-    return { team: "village", reason: "Không còn Ma Sói sống trong làng." };
+    return { team: "village", reason: "Không còn Sói sống trong làng." };
   if (wolves >= alive.length - wolves)
     return {
       team: "wolves",

@@ -2,7 +2,7 @@
 import { Home } from "./Home";
 import { useEffect, useRef, useState } from "react";
 import { Moon } from "lucide-react";
-import { defaultSettings, type Game, type GameConfig } from "../domain/types";
+import type { Game, GameConfig } from "../domain/types";
 import { createGame, execute, type Command } from "../engine/engine";
 import { replay } from "../events/replay";
 import { deleteGame, loadGames, saveGame } from "../storage/db";
@@ -11,6 +11,8 @@ import { demoConfig } from "../lib/demo";
 import { rematchConfig } from "../lib/rematch";
 import { GameButton } from "../components/ui";
 import { SetupWizard } from "./SetupWizard";
+import { Deck } from "./Deck";
+import { readDeckPrefs } from "../storage/deck";
 import { Gameplay } from "./Gameplay";
 import { Summary } from "./Summary";
 interface InstallPrompt extends Event {
@@ -25,7 +27,8 @@ export function App() {
     [error, setError] = useState(""),
     [offlineReady, setOfflineReady] = useState(false),
     [offline, setOffline] = useState(false),
-    [install, setInstall] = useState<InstallPrompt | null>(null);
+    [install, setInstall] = useState<InstallPrompt | null>(null),
+    [deckOpen, setDeckOpen] = useState(false);
   const lock = useRef(false);
   useEffect(() => {
     let alive = true;
@@ -124,7 +127,8 @@ export function App() {
           : {
               name: defaultName(),
               players: [],
-              settings: { ...defaultSettings },
+              // New tables follow the village deck's house rules.
+              settings: readDeckPrefs().settings,
             },
       );
       await persist(g);
@@ -203,6 +207,8 @@ export function App() {
             busy={busy}
           />
         )
+      ) : deckOpen ? (
+        <Deck onBack={() => setDeckOpen(false)} />
       ) : (
         <Home
           active={active}
@@ -220,6 +226,7 @@ export function App() {
           onCreate={newGame}
           onSelect={select}
           onDelete={removeGame}
+          onOpenDeck={() => setDeckOpen(true)}
         />
       )}
     </>

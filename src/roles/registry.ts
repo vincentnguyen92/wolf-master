@@ -13,9 +13,11 @@ const identity = (_s: GameState, a: NightAction) => a;
 export const roles: Record<RoleId, Role> = {
   werewolf: {
     id: "werewolf",
-    name: "Ma Sói",
+    name: "Sói",
+    points: -6,
     team: "wolves",
-    description: "Cùng bầy chọn một người để tấn công mỗi đêm.",
+    description:
+      "Hằng đêm, thức dậy cùng những con Sói khác. Chọn ra một người chơi để ăn thịt.",
     nightPriority: 10,
     hasNightAction: true,
     motif: "Trăng & nanh",
@@ -32,9 +34,10 @@ export const roles: Record<RoleId, Role> = {
   wolf_cub: {
     id: "wolf_cub",
     name: "Sói con",
+    points: -8,
     team: "wolves",
     description:
-      "Thức dậy cùng bầy Sói. Khi Sói con chết, đêm kế tiếp bầy Sói được cắn hai người.",
+      "Thức dậy cùng bầy Sói. Nếu bị giết, đêm tiếp theo bầy Sói giết 2 người để trả thù.",
     nightPriority: 10,
     hasNightAction: true,
     motif: "Nanh sữa & trăng non",
@@ -48,9 +51,11 @@ export const roles: Record<RoleId, Role> = {
   },
   guard: {
     id: "guard",
-    name: "Bảo vệ",
+    name: "Người bảo vệ",
+    points: 3,
     team: "village",
-    description: "Che chở một người khỏi Sói. Có thể bảo vệ chính mình.",
+    description:
+      "Mỗi đêm, chọn ra một người chơi. Sói không giết được người đó trong đêm.",
     nightPriority: 20,
     hasNightAction: true,
     motif: "Khiên & đèn",
@@ -60,16 +65,19 @@ export const roles: Record<RoleId, Role> = {
     getEligibleTargets: (s, p) =>
       alive(s).filter(
         (t) =>
-          s.settings.canProtectSamePlayerConsecutively ||
-          p.roleState.lastProtected !== t.id,
+          (s.settings.canProtectSamePlayerConsecutively ||
+            p.roleState.lastProtected !== t.id) &&
+          (s.settings.guardCanProtectSelf || t.id !== p.id),
       ),
     resolveAction: identity,
   },
   seer: {
     id: "seer",
     name: "Tiên tri",
+    points: 7,
     team: "village",
-    description: "Soi một người còn sống để biết họ có phải Ma Sói.",
+    description:
+      "Mỗi đêm, chỉ ra một người và biết được người đó là Dân làng hay là Sói.",
     nightPriority: 30,
     hasNightAction: true,
     motif: "Mắt & sao",
@@ -85,8 +93,10 @@ export const roles: Record<RoleId, Role> = {
   witch: {
     id: "witch",
     name: "Phù thủy",
+    points: 4,
     team: "village",
-    description: "Một bình cứu, một bình độc. Mỗi bình dùng một lần.",
+    description:
+      "Được cứu một người bị Sói cắn và giết một người bất kỳ. Mỗi bình dùng một lần.",
     nightPriority: 40,
     hasNightAction: true,
     motif: "Bình & thảo mộc",
@@ -100,8 +110,9 @@ export const roles: Record<RoleId, Role> = {
   hunter: {
     id: "hunter",
     name: "Thợ săn",
+    points: 3,
     team: "village",
-    description: "Khi chết, có thể bắn một người còn sống.",
+    description: "Nếu bị chết, có thể giết một người khác ngay lập tức.",
     nightPriority: 0,
     hasNightAction: false,
     motif: "Cung & rừng",
@@ -114,9 +125,10 @@ export const roles: Record<RoleId, Role> = {
   },
   villager: {
     id: "villager",
-    name: "Dân thường",
+    name: "Dân làng",
+    points: 1,
     team: "village",
-    description: "Lắng nghe, suy luận và bỏ phiếu tìm ra bầy Sói.",
+    description: "Tìm ra các con Sói và treo cổ chúng.",
     nightPriority: 0,
     hasNightAction: false,
     motif: "Nhà & đèn",
@@ -128,10 +140,11 @@ export const roles: Record<RoleId, Role> = {
   },
   tanner: {
     id: "tanner",
-    name: "Chán đời",
+    name: "Kẻ chán đời",
+    points: -2,
     team: "neutral",
     description:
-      "Chỉ muốn rời làng. Thắng một mình nếu bị cả làng bỏ phiếu treo cổ.",
+      "Ghét cuộc sống tẻ nhạt. Thắng một mình nếu bị cả làng treo cổ.",
     nightPriority: 0,
     hasNightAction: false,
     motif: "Dây thừng & mặt buồn",
@@ -145,6 +158,6 @@ export const roles: Record<RoleId, Role> = {
 export const teamNames: Record<Team, string> = {
   village: "Phe Dân",
   wolves: "Phe Sói",
-  neutral: "Chán đời",
+  neutral: "Kẻ chán đời",
 };
 export const roleList = Object.values(roles);

@@ -324,7 +324,7 @@ describe("deterministic game engine", () => {
     expect(s.players[0].death?.cause).toBe("VOTE_EXECUTION");
     expect(s.players[6].death?.cause).toBe("WOLF_ATTACK");
     expect(s.players[7].death?.cause).toBe("WITCH_POISON");
-    expect(storyRecap(g.events)).toContain("P7 (Ma Sói) chết vì bình độc");
+    expect(storyRecap(g.events)).toContain("P7 (Sói) chết vì bình độc");
     expect(playerStory(g.events, "2").length).toBe(2);
     expect(
       statistics(g.events).find(
@@ -445,8 +445,8 @@ it("only dead roles with a death trigger enter pending queue", () => {
 it("blocked wolf attack is factual even if the same target dies of poison", () => {
   const g = night(start(), "5", "5", { poisonId: "5" }),
     story = storyRecap(g.events);
-  expect(story).toContain("Đòn cắn nhắm vào P5 bị chặn bởi Bảo vệ");
-  expect(story).toContain("P5 (Dân thường) chết vì bình độc");
+  expect(story).toContain("Đòn cắn nhắm vào P5 bị chặn bởi Người bảo vệ");
+  expect(story).toContain("P5 (Dân làng) chết vì bình độc");
 });
 it("hunter executed at wolf parity gets to shoot before victory", () => {
   let g = execute(setup({}, ["werewolf", "hunter", "villager", "villager"]), {

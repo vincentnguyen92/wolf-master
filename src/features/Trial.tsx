@@ -3,7 +3,7 @@ import { useRef, useState, type PointerEvent } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { GameState } from "../domain/types";
 import type { Command } from "../engine/engine";
-import { GameButton, PlayerCard } from "../components/ui";
+import { GameButton, RoundTable, SeatToken } from "../components/ui";
 import { playerName } from "../story/narrative";
 // The village counts hands at the table; the app only records who was put
 // on trial and whether the village hanged or spared them.
@@ -17,38 +17,48 @@ export function Nomination({
   busy: boolean;
 }) {
   const [suspect, setSuspect] = useState<string>();
+  const chosen = state.players.find((p) => p.id === suspect);
   return (
     <section className="turn" aria-labelledby="turn-title">
       <header>
         <h2 id="turn-title">Làng nghi ai nhất?</h2>
         <p className="muted">
-          Sau khi thảo luận, chạm thẻ người bị nghi rồi chạm Mời lên ngay trên
-          thẻ.
+          Sau khi thảo luận, chạm ghế người bị nghi rồi mời họ lên ở giữa bàn.
         </p>
       </header>
-      <div className="card-grid">
-        {state.players
-          .filter((p) => p.alive)
-          .map((p) => (
-            <PlayerCard
-              key={p.id}
-              player={p}
-              disabled={busy}
-              selected={suspect === p.id}
-              onClick={() => setSuspect(suspect === p.id ? undefined : p.id)}
-              action={
-                suspect === p.id && !busy
-                  ? {
-                      label: "Mời lên",
-                      name: `Mời ${p.name} lên thanh minh`,
-                      onClick: () =>
-                        void onCommand({ type: "nominate", targetId: p.id }),
-                    }
-                  : undefined
-              }
-            />
-          ))}
-      </div>
+      <RoundTable
+        day
+        seats={state.players.map((p) => (
+          <SeatToken
+            key={p.id}
+            player={p}
+            disabled={busy || !p.alive}
+            selected={suspect === p.id}
+            label={p.alive ? `Chọn ${p.name}` : `${p.name}, đã chết`}
+            onClick={() => setSuspect(suspect === p.id ? undefined : p.id)}
+          />
+        ))}
+        center={
+          chosen ? (
+            <>
+              <strong>{chosen.name}</strong>
+              <button
+                type="button"
+                className="rt-action"
+                disabled={busy}
+                aria-label={`Mời ${chosen.name} lên thanh minh`}
+                onClick={() =>
+                  void onCommand({ type: "nominate", targetId: chosen.id })
+                }
+              >
+                Mời {chosen.name} lên
+              </button>
+            </>
+          ) : (
+            <span className="rt-hint">Chạm người làng nghi nhất</span>
+          )
+        }
+      />
       <div className="turn-footer">
         <GameButton
           variant="ghost"

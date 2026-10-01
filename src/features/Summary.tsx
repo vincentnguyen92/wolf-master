@@ -2,10 +2,10 @@
 import { useState } from "react";
 import { ArrowLeft, Trophy, Undo2, BookOpen, RotateCcw } from "lucide-react";
 import type { Game, GameState } from "../domain/types";
-import { GameButton, PhaseHeader } from "../components/ui";
+import { GameButton, PhaseHeader, roleAssets } from "../components/ui";
+import { roles } from "../roles/registry";
 import { statistics } from "../statistics/statistics";
-import { storyRecap } from "../story/narrative";
-import { Overview } from "./Overview";
+import { deathLabels, storyRecap } from "../story/narrative";
 import { CopyButton, Timeline } from "./Timeline";
 export function Summary({
   game,
@@ -45,7 +45,7 @@ export function Summary({
           {state.victory?.team === "village"
             ? "Bình minh thuộc về Dân."
             : state.victory?.team === "neutral"
-              ? "Kẻ Chán đời được toại nguyện."
+              ? "Kẻ chán đời được toại nguyện."
               : "Đêm nay, Sói chiến thắng."}
         </h1>
         <p>{state.victory?.reason}</p>
@@ -94,7 +94,7 @@ export function Summary({
           <div className="story-text">{storyRecap(game.events)}</div>
         </section>
       )}
-      {tab === "players" && <Overview state={state} events={game.events} />}{" "}
+      {tab === "players" && <CardReveal state={state} />}
       {tab === "stats" && (
         <div className="stats-grid">
           {statistics(game.events).map((stat) => (
@@ -113,5 +113,30 @@ export function Summary({
         </GameButton>
       </div>
     </main>
+  );
+}
+// Every seat's card turned face up, with how that player's game ended.
+function CardReveal({ state }: { state: GameState }) {
+  return (
+    <div className="card-reveal">
+      {state.players.map((p) => (
+        <div key={p.id} className={`reveal-seat ${p.alive ? "" : "dead"}`}>
+          {/* Local card scans are intentional native images. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={roleAssets[p.role]}
+            alt={roles[p.role].name}
+            width={80}
+            height={120}
+          />
+          <strong>{p.name}</strong>
+          <span>
+            {p.death
+              ? `${deathLabels[p.death.cause]}, ${p.death.phase === "night" ? "đêm" : "ngày"} ${p.death.round}`
+              : "Sống sót"}
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }

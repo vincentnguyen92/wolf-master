@@ -53,7 +53,7 @@ export function validateConfig(c: GameConfig, starting = false) {
     ensure(
       c.players.some((p) => p.role === "werewolf") &&
         wolves < c.players.length - wolves,
-      "Cần ít nhất 1 Ma Sói và số Sói ít hơn số người còn lại.",
+      "Cần ít nhất 1 lá Sói và số Sói ít hơn số người còn lại.",
     );
     for (const id of ["seer", "guard", "witch", "hunter", "wolf_cub", "tanner"])
       ensure(

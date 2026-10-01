@@ -43,6 +43,10 @@ export interface GameSettings {
   hunterShootsWhenPoisoned: boolean;
   /** Keep calling dead or exhausted roles so the table cannot tell who is gone. */
   callAllRolesEachNight: boolean;
+  guardCanProtectSelf: boolean;
+  seerSeesWolfCub: boolean;
+  /** As printed on the card: the tanner wins however they die. */
+  tannerWinsOnAnyDeath: boolean;
 }
 export const defaultSettings: GameSettings = {
   canProtectSamePlayerConsecutively: false,
@@ -51,6 +55,9 @@ export const defaultSettings: GameSettings = {
   hunterShootsWhenExecuted: true,
   hunterShootsWhenPoisoned: true,
   callAllRolesEachNight: true,
+  guardCanProtectSelf: true,
+  seerSeesWolfCub: true,
+  tannerWinsOnAnyDeath: false,
 };
 export interface SetupPlayer {
   id: string;
@@ -167,6 +174,8 @@ export interface Game {
 export interface Role {
   id: RoleId;
   name: string;
+  /** Balance points printed on the physical card. */
+  points: number;
   team: Team;
   description: string;
   nightPriority: number;

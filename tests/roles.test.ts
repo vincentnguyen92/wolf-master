@@ -5,7 +5,7 @@ import { evaluateVictory, getCurrentAction } from "../src/engine/selectors";
 import { seerResult } from "../src/roles/abilities";
 import { storyRecap } from "../src/story/narrative";
 import { defaultSettings, type Game, type RoleId } from "../src/domain/types";
-// 0 Ma Sói · 1 Sói con · 2 Tiên tri · 3 Phù thủy · 4,5,7 Dân · 6 Chán đời
+// 0 Sói · 1 Sói con · 2 Tiên tri · 3 Phù thủy · 4,5,7 Dân làng · 6 Kẻ chán đời
 const table: RoleId[] = [
   "werewolf",
   "wolf_cub",
@@ -116,7 +116,7 @@ describe("Sói con", () => {
     expect(alive(g, "7")).toBe(true);
   });
 });
-describe("Chán đời", () => {
+describe("Kẻ chán đời", () => {
   it("wins alone when the village votes them out", () => {
     let g = act(start());
     g = act(g, "4");
@@ -126,7 +126,7 @@ describe("Chán đời", () => {
     expect(() => execute(g, { type: "advance" })).toThrow("phe thắng");
     g = execute(g, { type: "end" });
     expect(state(g).victory?.team).toBe("neutral");
-    expect(storyRecap(g.events)).toContain("Chán đời chiến thắng");
+    expect(storyRecap(g.events)).toContain("Kẻ chán đời chiến thắng");
   });
   it("does not win when killed any other way", () => {
     let g = act(start(), "6");
@@ -137,8 +137,57 @@ describe("Chán đời", () => {
     expect(evaluateVictory(state(g))).toBeUndefined();
   });
 });
-it("a table needs a grown Ma Sói, not only a Sói con", () => {
+it("a table needs a grown Sói, not only a Sói con", () => {
   expect(() =>
     start(["wolf_cub", "seer", "villager", "villager", "villager"]),
-  ).toThrow("Ma Sói");
+  ).toThrow("lá Sói");
+});
+describe("house rules from the card backs", () => {
+  const table: RoleId[] = [
+    "werewolf",
+    "wolf_cub",
+    "seer",
+    "guard",
+    "villager",
+    "villager",
+    "tanner",
+    "villager",
+  ];
+  const begin = (settings: Partial<typeof defaultSettings>) =>
+    execute(
+      createGame({
+        name: "Luật lá bài",
+        settings: { ...defaultSettings, ...settings },
+        players: table.map((role, i) => ({
+          id: String(i),
+          name: `P${i}`,
+          role,
+        })),
+      }),
+      { type: "start" },
+    );
+  it("the seer may or may not see the cub as a wolf", () => {
+    expect(seerResult(state(begin({})), "1")).toBe(true);
+    expect(seerResult(state(begin({ seerSeesWolfCub: false })), "1")).toBe(
+      false,
+    );
+  });
+  it("the guard may be barred from guarding themselves", () => {
+    let g = act(begin({ guardCanProtectSelf: false }), "4");
+    expect(getCurrentAction(state(g))!.eligibleIds).not.toContain("3");
+    g = act(begin({}), "4");
+    expect(getCurrentAction(state(g))!.eligibleIds).toContain("3");
+  });
+  it("the tanner may win however they die, as printed on the card", () => {
+    const bitten = (settings: Partial<typeof defaultSettings>) => {
+      let g = act(begin(settings), "6");
+      g = act(g);
+      g = act(g, "0");
+      return execute(g, { type: "resolveNight" });
+    };
+    expect(evaluateVictory(state(bitten({})))).toBeUndefined();
+    expect(
+      evaluateVictory(state(bitten({ tannerWinsOnAnyDeath: true })))?.team,
+    ).toBe("neutral");
+  });
 });

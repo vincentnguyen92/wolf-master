@@ -12,10 +12,9 @@ import {
 import {
   ConfirmationDialog,
   GameButton,
-  PlayerCard,
-  RoleCard,
+  RoundTable,
+  SeatToken,
   roleAssets,
-  type CardAction,
 } from "../components/ui";
 import { playerName } from "../story/narrative";
 import { healableVictims, seerResult } from "../roles/abilities";
@@ -47,9 +46,15 @@ export function NightTurn({
       // The role is out of play; the moderator calls it anyway, so the screen
       // stays quiet and only lets them move on.
       <div className="fake-call">
-        <div className="fake-call-dim" aria-hidden="true">
-          <RoleCard role={action.kind} />
-        </div>
+        {/* Local card scans are intentional native images. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          className="fake-call-card"
+          src={roleAssets[action.kind]}
+          alt=""
+          width={240}
+          height={360}
+        />
         <GameButton
           variant="secondary"
           disabled={busy}
@@ -86,8 +91,7 @@ export function NightTurn({
           : bite > 1
             ? "Bầy Sói chọn người thứ hai?"
             : "Bầy Sói chọn ai?";
-  const alive = state.players.filter((p) => p.alive);
-  // Why a living player cannot be picked this turn, shown on their card.
+  // Why a living player cannot be picked this turn, shown under their seat.
   const lockReason = (p: Player) =>
     action.kind === "werewolf" && roles[p.role].team === "wolves"
       ? "Đồng bầy"
@@ -95,16 +99,27 @@ export function NightTurn({
         ? "Đã bị cắn"
         : action.kind === "guard" && actor.roleState.lastProtected === p.id
           ? "Không che liên tiếp"
-          : seer && p.id === actor.id
-            ? "Chính mình"
-            : undefined;
+          : action.kind === "guard" &&
+              p.id === actor.id &&
+              !state.settings.guardCanProtectSelf
+            ? "Không tự che"
+            : seer && p.id === actor.id
+              ? "Chính mình"
+              : undefined;
   const verb = hunter ? "Bắn" : action.kind === "guard" ? "Che" : "Cắn";
+  const tone = action.kind === "guard" ? "calm" : "danger";
+  const chosen = state.players.find((p) => p.id === target);
   return (
     <section className="turn" aria-labelledby="turn-title">
       <header className="turn-head">
-        {/* Local original SVG illustrations are intentional native images. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={roleAssets[action.kind]} alt="" width={64} height={72} />
+        <img
+          className="turn-card"
+          src={roleAssets[action.kind]}
+          alt=""
+          width={60}
+          height={90}
+        />
         <div>
           <small>
             {hunter
@@ -114,7 +129,7 @@ export function NightTurn({
           <h2 id="turn-title">{title}</h2>
           <span className={`turn-actors role-${action.kind}`}>
             {hunter
-              ? "Có thể chọn không bắn"
+              ? "Xử lý trước khi xét thắng thua"
               : `${action.actorIds.map((id) => playerName(state, id)).join(" và ")} thức dậy`}
           </span>
         </div>
@@ -126,10 +141,11 @@ export function NightTurn({
         </p>
       )}
       {witch ? (
-        <WitchChoices
+        <WitchTable
           state={state}
           actorId={actor.id}
           eligibleIds={action.eligibleIds}
+          busy={busy}
           healedId={healedId}
           setHealedId={setHealedId}
           poison={poison}
@@ -137,137 +153,139 @@ export function NightTurn({
           poisonPick={poisonPick}
           setPoisonPick={setPoisonPick}
         />
-      ) : seer ? (
-        <div className="card-grid">
-          {alive.map((p) => {
-            const reason = lockReason(p),
-              up = revealed && target === p.id,
-              wolf = up && seerResult(state, p.id);
-            return (
-              <button
-                key={p.id}
-                type="button"
-                className={`flip-card ${up ? "up" : ""} ${revealed && !up ? "dim" : ""}`}
-                disabled={busy || !!reason || revealed}
-                aria-label={reason ? `${p.name}, ${reason}` : `Soi ${p.name}`}
-                onClick={() => {
-                  setTarget(p.id);
-                  setRevealed(true);
-                }}
-              >
-                <span className="flip-inner">
-                  <span className="flip-face">
-                    <span
-                      className={`pcard-initial avatar-${p.name.codePointAt(0)! % 4}`}
-                      aria-hidden="true"
-                    >
-                      {p.name.slice(0, 1).toLocaleUpperCase("vi")}
-                    </span>
-                    <span className="pcard-name">{p.name}</span>
-                    {reason && <span className="pcard-note">{reason}</span>}
-                  </span>
-                  <span
-                    className={`flip-face flip-back ${wolf ? "wolf" : "safe"}`}
-                    role={up ? "status" : undefined}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={roleAssets[wolf ? "werewolf" : "villager"]}
-                      alt=""
-                      width={56}
-                      height={63}
-                    />
-                    <strong>{wolf ? "Ma Sói" : "Không phải Sói"}</strong>
-                    <span className="pcard-note">{p.name}</span>
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
       ) : (
-        <div className="card-grid">
-          {alive.map((p) => {
+        <RoundTable
+          seats={state.players.map((p) => {
+            if (!p.alive) return <SeatToken key={p.id} player={p} disabled />;
             const reason = lockReason(p),
               eligible = action.eligibleIds.includes(p.id) && !reason;
-            const act: CardAction | undefined =
-              target === p.id && eligible
-                ? {
-                    label: verb,
-                    name: `${verb} ${p.name}`,
-                    tone: action.kind === "guard" ? "calm" : "danger",
-                    onClick: () => pick(p.id),
-                  }
-                : undefined;
             return (
-              <PlayerCard
+              <SeatToken
                 key={p.id}
                 player={p}
                 note={reason}
-                disabled={busy || !eligible}
+                disabled={busy || !eligible || (seer && revealed)}
                 selected={target === p.id}
-                action={busy ? undefined : act}
-                onClick={() => setTarget(target === p.id ? undefined : p.id)}
+                tone={target === p.id ? (seer ? "magic" : tone) : undefined}
+                label={
+                  reason
+                    ? `${p.name}, ${reason}`
+                    : `${seer ? "Soi" : "Chọn"} ${p.name}`
+                }
+                onClick={() => {
+                  if (seer) {
+                    setTarget(p.id);
+                    setRevealed(true);
+                  } else setTarget(target === p.id ? undefined : p.id);
+                }}
               />
             );
           })}
-        </div>
+          center={
+            seer ? (
+              revealed && chosen ? (
+                <SeerAnswer state={state} player={chosen} />
+              ) : (
+                <span className="rt-hint">
+                  Chạm một người, lá của họ lật ra ở đây
+                </span>
+              )
+            ) : chosen ? (
+              <>
+                <strong>{chosen.name}</strong>
+                <button
+                  type="button"
+                  className={`rt-action ${tone}`}
+                  disabled={busy}
+                  onClick={() => pick(chosen.id)}
+                >
+                  {verb} {chosen.name}
+                </button>
+              </>
+            ) : (
+              <span className="rt-hint">
+                {hunter
+                  ? "Chạm người bị bắn"
+                  : action.kind === "guard"
+                    ? "Chạm người được che"
+                    : "Chạm người bị nhắm"}
+              </span>
+            )
+          }
+        />
       )}
       <div className="turn-footer">
-        {seer ? (
-          revealed && (
-            <>
-              <GameButton
-                variant="secondary"
-                disabled={busy}
-                onClick={() => {
-                  setRevealed(false);
-                  setTarget(undefined);
-                }}
-              >
-                Chọn lại
-              </GameButton>
-              <GameButton disabled={busy} onClick={() => pick(target)}>
-                Xong
-                <ArrowRight size={18} />
-              </GameButton>
-            </>
-          )
+        {seer && revealed ? (
+          <div className="footer-pair">
+            <GameButton
+              variant="secondary"
+              disabled={busy}
+              onClick={() => {
+                setRevealed(false);
+                setTarget(undefined);
+              }}
+            >
+              Chọn lại
+            </GameButton>
+            <GameButton disabled={busy} onClick={() => pick(target)}>
+              Xong
+              <ArrowRight size={18} />
+            </GameButton>
+          </div>
         ) : witch ? (
-          <GameButton
-            disabled={busy}
-            onClick={() =>
-              void onCommand({
-                type: "night",
-                action: {
-                  kind: "witch",
-                  actorId: actor.id,
-                  heal: !!healedId,
-                  healedId,
-                  poisonId: poison,
-                },
-              })
-            }
-          >
-            {healedId || poison ? "Xác nhận dùng thuốc" : "Giữ lại bình thuốc"}
-            <ArrowRight size={18} />
-          </GameButton>
+          <>
+            <p className="muted">
+              {[
+                healedId ? `Cứu ${playerName(state, healedId)}` : "Không cứu",
+                poison
+                  ? `đầu độc ${playerName(state, poison)}`
+                  : "không dùng độc",
+              ].join(", ")}
+              .
+            </p>
+            <GameButton
+              disabled={busy}
+              onClick={() =>
+                void onCommand({
+                  type: "night",
+                  action: {
+                    kind: "witch",
+                    actorId: actor.id,
+                    heal: !!healedId,
+                    healedId,
+                    poisonId: poison,
+                  },
+                })
+              }
+            >
+              {healedId || poison
+                ? "Xác nhận dùng thuốc"
+                : "Giữ lại bình thuốc"}
+              <ArrowRight size={18} />
+            </GameButton>
+          </>
         ) : (
-          <p className="muted">
-            Chạm thẻ người được chọn. Nút xác nhận hiện ngay trên thẻ.
-          </p>
+          !seer && (
+            <GameButton
+              variant="ghost"
+              disabled={busy}
+              onClick={() => setSkip(true)}
+            >
+              {hunter
+                ? "Không bắn"
+                : action.kind === "werewolf"
+                  ? "Bầy Sói không cắn ai"
+                  : "Bỏ qua lượt"}
+            </GameButton>
+          )
         )}
-        {!witch && !revealed && (
+        {seer && !revealed && (
           <GameButton
             variant="ghost"
             disabled={busy}
             onClick={() => setSkip(true)}
           >
-            {hunter
-              ? "Không bắn"
-              : action.kind === "werewolf"
-                ? "Bầy Sói không cắn ai"
-                : "Bỏ qua lượt"}
+            Bỏ qua lượt
           </GameButton>
         )}
       </div>
@@ -286,10 +304,33 @@ export function NightTurn({
     </section>
   );
 }
-function WitchChoices({
+// The answer is the real card, turning over in the middle of the table.
+function SeerAnswer({ state, player }: { state: GameState; player: Player }) {
+  const wolf = seerResult(state, player.id);
+  const text = wolf ? `${player.name} là Sói` : `${player.name} không phải Sói`;
+  return (
+    <div className="rt-answer" role="status">
+      <span className={`rt-card ${wolf ? "wolf" : "safe"}`}>
+        <span className="rt-card-in">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={roleAssets[wolf ? "werewolf" : "villager"]}
+            alt={text}
+            width={84}
+            height={126}
+          />
+          <span className="rt-card-back" aria-hidden="true" />
+        </span>
+      </span>
+      <span className={`rt-verdict ${wolf ? "wolf" : "safe"}`}>{text}</span>
+    </div>
+  );
+}
+function WitchTable({
   state,
   actorId,
   eligibleIds,
+  busy,
   healedId,
   setHealedId,
   poison,
@@ -300,6 +341,7 @@ function WitchChoices({
   state: GameState;
   actorId: string;
   eligibleIds: string[];
+  busy: boolean;
   healedId?: string;
   setHealedId: (id?: string) => void;
   poison?: string;
@@ -312,7 +354,9 @@ function WitchChoices({
     healable = healableVictims(state, actor);
   const usage = actor.roleState.usage;
   // Without the house rule, a used heal locks the poison for tonight.
-  const poisonLocked = !!healedId && !state.settings.canUseBothPotionsSameNight;
+  const poisonLocked =
+    usage.poison || (!!healedId && !state.settings.canUseBothPotionsSameNight);
+  const picked = state.players.find((p) => p.id === poisonPick);
   return (
     <>
       <div className="potion-status">
@@ -323,90 +367,124 @@ function WitchChoices({
           Bình độc: {usage.poison ? "đã dùng" : poison ? "dùng đêm nay" : "còn"}
         </span>
       </div>
-      {victims.length ? (
-        victims.map((id) => {
-          const saved = healedId === id,
-            can = healable.includes(id);
+      <RoundTable
+        seats={state.players.map((p) => {
+          if (!p.alive) return <SeatToken key={p.id} player={p} disabled />;
+          const bitten = victims.includes(p.id),
+            saved = healedId === p.id,
+            poisoned = poison === p.id;
+          const note = poisoned
+            ? "Trúng độc"
+            : bitten
+              ? saved
+                ? "Được cứu"
+                : "Bị cắn"
+              : p.id === actorId
+                ? "Phù thủy"
+                : undefined;
+          const canPoison =
+            eligibleIds.includes(p.id) &&
+            (poisoned || (!poisonLocked && !poison));
           return (
-            <div key={id} className={`victim-card ${saved ? "saved" : ""}`}>
-              <div>
-                <small>{saved ? "Được cứu" : "Bị Sói cắn"}</small>
-                <strong>{playerName(state, id)}</strong>
-                {!can && !saved && (
-                  <span className="pcard-note">
-                    {usage.heal ? "Đã hết bình cứu" : "Không được tự cứu"}
-                  </span>
-                )}
-              </div>
-              {can && (
-                <button
-                  type="button"
-                  className={`victim-save ${saved ? "on" : ""}`}
-                  aria-pressed={saved}
-                  onClick={() => {
-                    setHealedId(saved ? undefined : id);
-                    if (!saved && !state.settings.canUseBothPotionsSameNight) {
-                      setPoison(undefined);
-                      setPoisonPick(undefined);
-                    }
-                  }}
-                >
-                  {saved ? "Bỏ cứu" : `Cứu ${playerName(state, id)}`}
-                </button>
-              )}
-            </div>
+            <SeatToken
+              key={p.id}
+              player={p}
+              note={note}
+              tone={
+                poisonPick === p.id
+                  ? "magic"
+                  : saved
+                    ? "calm"
+                    : bitten || poisoned
+                      ? "danger"
+                      : undefined
+              }
+              selected={poisonPick === p.id}
+              disabled={busy || !canPoison}
+              label={
+                poisoned
+                  ? `${p.name}, trúng độc. Chạm để bỏ`
+                  : `Chọn ${p.name} để đầu độc`
+              }
+              onClick={() => {
+                if (poisoned) {
+                  setPoison(undefined);
+                  setPoisonPick(undefined);
+                } else setPoisonPick(poisonPick === p.id ? undefined : p.id);
+              }}
+            />
           );
-        })
-      ) : (
-        <div className="victim-card empty">
-          <div>
-            <small>Bầy Sói không cắn ai</small>
-          </div>
-        </div>
-      )}
+        })}
+        center={
+          picked ? (
+            <>
+              <strong>{picked.name}</strong>
+              <button
+                type="button"
+                className="rt-action danger"
+                onClick={() => {
+                  setPoison(picked.id);
+                  setPoisonPick(undefined);
+                }}
+              >
+                Đầu độc {picked.name}
+              </button>
+              <button
+                type="button"
+                className="rt-link"
+                onClick={() => setPoisonPick(undefined)}
+              >
+                Bỏ chọn
+              </button>
+            </>
+          ) : victims.length ? (
+            victims.map((id) => {
+              const saved = healedId === id;
+              return (
+                <div key={id} className="rt-victim">
+                  <span className={saved ? "saved" : "bitten"}>
+                    {saved ? "Được cứu" : "Bị Sói cắn"}
+                  </span>
+                  <strong>{playerName(state, id)}</strong>
+                  {healable.includes(id) ? (
+                    <button
+                      type="button"
+                      className={`rt-action ${saved ? "outline" : "calm"}`}
+                      aria-pressed={saved}
+                      onClick={() => {
+                        setHealedId(saved ? undefined : id);
+                        if (
+                          !saved &&
+                          !state.settings.canUseBothPotionsSameNight
+                        ) {
+                          setPoison(undefined);
+                          setPoisonPick(undefined);
+                        }
+                      }}
+                    >
+                      {saved ? "Bỏ cứu" : `Cứu ${playerName(state, id)}`}
+                    </button>
+                  ) : (
+                    !saved && (
+                      <span className="rt-hint">
+                        {usage.heal ? "Đã hết bình cứu" : "Không được tự cứu"}
+                      </span>
+                    )
+                  )}
+                </div>
+              );
+            })
+          ) : (
+            <span className="rt-hint">Bầy Sói không cắn ai</span>
+          )
+        }
+      />
       {!usage.poison && (
-        <>
-          <h3 className="turn-subtitle">Đầu độc ai không?</h3>
-          <p className="muted">
-            {poisonLocked
-              ? "Đã dùng bình cứu, đêm nay không được dùng thêm bình độc."
-              : "Chạm thẻ, rồi chạm Đầu độc ngay trên thẻ. Chạm lại để bỏ."}
-          </p>
-          <div className="card-grid compact">
-            {state.players
-              .filter((p) => eligibleIds.includes(p.id))
-              .map((p) => {
-                const poisoned = poison === p.id;
-                return (
-                  <PlayerCard
-                    key={p.id}
-                    player={p}
-                    disabled={poisonLocked || (!!poison && !poisoned)}
-                    selected={poisonPick === p.id && !poison}
-                    tone={poisoned ? "danger" : undefined}
-                    note={poisoned ? "Trúng độc" : undefined}
-                    onClick={() => {
-                      if (poisoned) {
-                        setPoison(undefined);
-                        setPoisonPick(undefined);
-                      } else
-                        setPoisonPick(poisonPick === p.id ? undefined : p.id);
-                    }}
-                    action={
-                      poisonPick === p.id && !poison
-                        ? {
-                            label: "Đầu độc",
-                            name: `Đầu độc ${p.name}`,
-                            tone: "danger",
-                            onClick: () => setPoison(p.id),
-                          }
-                        : undefined
-                    }
-                  />
-                );
-              })}
-          </div>
-        </>
+        <p className="muted turn-help">
+          {poisonLocked
+            ? "Đã dùng bình cứu, đêm nay không được dùng thêm bình độc."
+            : "Muốn đầu độc ai thì chạm ghế người đó. Chạm lại người trúng độc để bỏ."}
+        </p>
       )}
     </>
   );

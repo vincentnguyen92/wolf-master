@@ -12,6 +12,7 @@ import {
 import { useState } from "react";
 import type { Game } from "../domain/types";
 import { replay } from "../events/replay";
+import { cardImage } from "../roles/cards";
 import { ConfirmationDialog, GameButton } from "../components/ui";
 import { SwipeToDelete } from "../components/SwipeToDelete";
 export function Home({
@@ -25,6 +26,7 @@ export function Home({
   onCreate,
   onSelect,
   onDelete,
+  onOpenDeck,
 }: {
   active: Game[];
   completed: Game[];
@@ -36,6 +38,7 @@ export function Home({
   onCreate: (demo?: boolean) => void;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  onOpenDeck: () => void;
 }) {
   const [pendingDelete, setPendingDelete] = useState<Game | null>(null),
     [swiped, setSwiped] = useState<string | null>(null);
@@ -93,8 +96,29 @@ export function Home({
             Không tài khoản · Không cần mạng khi đã tải
           </span>
         </div>
-        <div className="village-art" aria-hidden="true" />
+        <div className="card-fan" aria-hidden="true">
+          {/* Local card scans are intentional native images. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={cardImage("seer")} alt="" width={128} height={192} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={cardImage("witch")} alt="" width={128} height={192} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={cardImage("werewolf")} alt="" width={128} height={192} />
+        </div>
       </section>
+      <button type="button" className="deck-entry" onClick={onOpenDeck}>
+        <span className="deck-stack" aria-hidden="true">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={cardImage("villager")} alt="" width={44} height={66} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={cardImage("wolf_cub")} alt="" width={44} height={66} />
+        </span>
+        <span className="deck-entry-text">
+          <strong>Bộ bài của làng</strong>
+          <span>16 lá, cài đặt luật riêng từng vai</span>
+        </span>
+        <ArrowRight size={18} />
+      </button>
       <section className="home-section">
         <div className="section-heading">
           <h2>Những ngọn đèn còn sáng</h2>
@@ -185,7 +209,7 @@ export function Home({
                     {s.victory?.team === "village"
                       ? "Dân thắng"
                       : s.victory?.team === "neutral"
-                        ? "Chán đời thắng"
+                        ? "Kẻ chán đời thắng"
                         : "Sói thắng"}
                     <ArrowRight size={17} />
                   </span>

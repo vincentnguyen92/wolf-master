@@ -8,7 +8,8 @@
     "start": "serve out -l 3000",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "lint": "eslint . && tsc --noEmit"
+    "lint": "eslint . && tsc --noEmit",
+    "cards": "node scripts/build-cards.mjs"
   },
   "dependencies": {
     "dexie": "^4.0.11",
