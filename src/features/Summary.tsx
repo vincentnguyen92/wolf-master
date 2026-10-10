@@ -131,7 +131,8 @@ function vietnameseVoice(voices: SpeechSynthesisVoice[]) {
   return vi.find((v) => /namminh|male/i.test(v.name)) ?? vi[0];
 }
 // Reads the story aloud with the device's own voice: free, no account, and
-// works offline. Slower and lower than normal, as a story told at night.
+// works offline. A little slower and lower than normal, as a story told at
+// night.
 function ReadAloud({ lines }: { lines: string[] }) {
   const [speaking, setSpeaking] = useState(false),
     [status, setStatus] = useState("");
@@ -145,8 +146,7 @@ function ReadAloud({ lines }: { lines: string[] }) {
   }, []);
   const toggle = () => {
     const synth = window.speechSynthesis;
-    if (!synth)
-      return setStatus("Trình duyệt này không đọc thành tiếng được.");
+    if (!synth) return setStatus("Trình duyệt này không đọc thành tiếng được.");
     synth.cancel();
     const current = ++run.current;
     if (speaking) return setSpeaking(false);
@@ -162,7 +162,7 @@ function ReadAloud({ lines }: { lines: string[] }) {
       const u = new SpeechSynthesisUtterance(text);
       u.voice = voice;
       u.lang = voice.lang;
-      u.rate = 0.85;
+      u.rate = 0.95;
       u.pitch = 0.8;
       if (i === lines.length - 1) u.onend = done;
       u.onerror = done;
