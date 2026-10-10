@@ -37,7 +37,12 @@ async function nameSeats(page: Page, names: string[]) {
     await page
       .getByRole("button", { name: `Ghế ${i + 1}: Người ${i + 1}` })
       .click();
-    await page.getByLabel(`Tên người ngồi ghế ${i + 1}`).fill(name);
+    // The seat's name is focused and selected, ready to be typed over.
+    await expect(page.getByLabel(`Tên người ngồi ghế ${i + 1}`)).toBeFocused();
+    await page.keyboard.type(name);
+    await expect(page.getByLabel(`Tên người ngồi ghế ${i + 1}`)).toHaveValue(
+      name,
+    );
   }
 }
 // Deal role cards to the seats in table order.

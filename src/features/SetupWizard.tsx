@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import {
   ArrowLeft,
   ArrowRight,
@@ -266,6 +267,17 @@ function SetupContent({
     }
   };
   const editingPlayer = draft.players.find((p) => p.id === editing);
+  const seatInput = useRef<HTMLInputElement>(null);
+  // Open the seat and select its name in the same tap: iOS only raises the
+  // keyboard for focus() called inside the user gesture.
+  const editSeat = (id: string) => {
+    if (editing === id) return setEditing(null);
+    flushSync(() => setEditing(id));
+    const input = seatInput.current;
+    if (!input) return;
+    input.focus();
+    input.setSelectionRange(0, input.value.length);
+  };
   const seatPlayer = draft.players.find((p) => p.id === seat);
   const allUp = draft.players.every((p) => up[p.id]);
   return (
@@ -363,7 +375,7 @@ function SetupContent({
                   selected={editing === p.id}
                   note={`Ghế ${i + 1}`}
                   label={`Ghế ${i + 1}: ${p.name}`}
-                  onClick={() => setEditing(editing === p.id ? null : p.id)}
+                  onClick={() => editSeat(p.id)}
                 />
               ))}
               center={
@@ -373,6 +385,7 @@ function SetupContent({
                       Ghế {draft.players.indexOf(editingPlayer) + 1}
                     </label>
                     <input
+                      ref={seatInput}
                       id="seat-name"
                       className="seat-input"
                       aria-label={`Tên người ngồi ghế ${draft.players.indexOf(editingPlayer) + 1}`}
