@@ -9,6 +9,7 @@ Sổ tay quản trò Ma Sói: PWA mobile-first, chạy offline, một thiết b�
 ```bash
 npm run dev        # dev server :3000 (service worker KHÔNG chạy ở dev)
 npm test           # Vitest: engine, vai, balance, IndexedDB (fake-indexeddb)
+npm run coverage   # như npm test, kèm độ bao phủ phần luật (báo cáo HTML ở coverage/)
 npm run lint       # ESLint + tsc --noEmit
 npm run build      # static export ra out/ + sinh service worker
 npm run test:e2e   # Playwright trên bản build (cần build trước)

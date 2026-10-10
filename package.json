@@ -7,6 +7,7 @@
     "build": "next build && node scripts/build-sw.mjs",
     "start": "serve out -l 3000",
     "test": "vitest run",
+    "coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "lint": "eslint . && tsc --noEmit",
     "cards": "node scripts/build-cards.mjs"
@@ -25,6 +26,7 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^9.0.0",
     "eslint-config-next": "16.3.6",
     "fake-indexeddb": "^6.0.0",

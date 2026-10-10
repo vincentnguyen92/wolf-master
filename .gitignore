@@ -6,6 +6,7 @@ out/
 next-env.d.ts
 playwright-report/
 test-results/
+coverage/
 .env*
 /cards/
 .claude/settings.local.json

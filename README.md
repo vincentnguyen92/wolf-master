@@ -17,6 +17,7 @@ Mở `http://localhost:3000`. Nút **Mở ván mẫu** tạo ngay ván 8 ngườ
 
 ```bash
 npm test                 # Unit/domain + IndexedDB tests
+npm run coverage         # Same tests, with coverage of the game logic (report in coverage/)
 npm run lint             # ESLint + TypeScript strict
 npm run build            # Static export + generated offline service worker
 npm start                # Serve production export at :3000
