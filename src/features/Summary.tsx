@@ -1,11 +1,19 @@
 "use client";
-import { useState, type CSSProperties } from "react";
-import { ArrowLeft, Trophy, Undo2, BookOpen, RotateCcw } from "lucide-react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  ArrowLeft,
+  Trophy,
+  Undo2,
+  BookOpen,
+  RotateCcw,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import type { Game, GameState } from "../domain/types";
 import { GameButton, PhaseHeader, roleAssets } from "../components/ui";
 import { roles } from "../roles/registry";
 import { statistics } from "../statistics/statistics";
-import { deathLabels, storyRecap } from "../story/narrative";
+import { deathLabels, storyRecap, storySpeech } from "../story/narrative";
 import { CopyButton, Timeline } from "./Timeline";
 export function Summary({
   game,
@@ -87,6 +95,7 @@ export function Summary({
           <p className="muted">
             Dành cho quản trò đọc cho cả bàn. Chỉ kể lại những gì đã xảy ra.
           </p>
+          <ReadAloud lines={storySpeech(game.events)} />
           <CopyButton
             label="Sao chép câu chuyện"
             text={storyRecap(game.events)}
@@ -113,6 +122,71 @@ export function Summary({
         </GameButton>
       </div>
     </main>
+  );
+}
+// Prefer a man's voice for a ghost story when the device has one (Edge's
+// "NamMinh"); otherwise any Vietnamese voice.
+function vietnameseVoice(voices: SpeechSynthesisVoice[]) {
+  const vi = voices.filter((v) => v.lang.toLowerCase().startsWith("vi"));
+  return vi.find((v) => /namminh|male/i.test(v.name)) ?? vi[0];
+}
+// Reads the story aloud with the device's own voice: free, no account, and
+// works offline. Slower and lower than normal, as a story told at night.
+function ReadAloud({ lines }: { lines: string[] }) {
+  const [speaking, setSpeaking] = useState(false),
+    [status, setStatus] = useState("");
+  // Each reading gets a number so a stopped one cannot end the next.
+  const run = useRef(0);
+  useEffect(() => {
+    const synth = window.speechSynthesis;
+    // Some browsers load their voices only after the first request.
+    synth?.getVoices();
+    return () => synth?.cancel();
+  }, []);
+  const toggle = () => {
+    const synth = window.speechSynthesis;
+    if (!synth)
+      return setStatus("Trình duyệt này không đọc thành tiếng được.");
+    synth.cancel();
+    const current = ++run.current;
+    if (speaking) return setSpeaking(false);
+    const voice = vietnameseVoice(synth.getVoices());
+    if (!voice)
+      return setStatus(
+        "Máy chưa có giọng đọc tiếng Việt. Trên iPhone: Cài đặt › Trợ năng › Nội dung được đọc › Giọng nói › Tiếng Việt.",
+      );
+    const done = () => {
+      if (run.current === current) setSpeaking(false);
+    };
+    lines.forEach((text, i) => {
+      const u = new SpeechSynthesisUtterance(text);
+      u.voice = voice;
+      u.lang = voice.lang;
+      u.rate = 0.85;
+      u.pitch = 0.8;
+      if (i === lines.length - 1) u.onend = done;
+      u.onerror = done;
+      synth.speak(u);
+    });
+    setStatus("");
+    setSpeaking(true);
+  };
+  return (
+    <>
+      <GameButton
+        variant="secondary"
+        aria-label="Đọc câu chuyện"
+        aria-pressed={speaking}
+        onClick={toggle}
+      >
+        {speaking ? <VolumeX size={18} /> : <Volume2 size={18} />}
+      </GameButton>
+      {status && (
+        <span className="muted" role="status">
+          {status}
+        </span>
+      )}
+    </>
   );
 }
 // Every seat's card turned face up, with how that player's game ended.

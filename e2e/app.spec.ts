@@ -52,6 +52,55 @@ async function deal(page: Page, roleNames: string[]) {
       .getByRole("button", { name: `Chia ${role}`, exact: true })
       .click();
 }
+// The speaker reads the story with the device's Vietnamese voice, and a
+// second tap stops it. The voice is faked: headless browsers have none.
+async function readAloud(page: Page) {
+  await page.evaluate(() => {
+    const spoken: { text: string; lang: string }[] = [];
+    let queue: SpeechSynthesisUtterance[] = [];
+    const voice = { name: "Linh", lang: "vi-VN" };
+    Object.defineProperty(window, "__spoken", { value: spoken });
+    // The real utterance only accepts the browser's own voice objects.
+    Object.defineProperty(window, "SpeechSynthesisUtterance", {
+      configurable: true,
+      value: class {
+        lang = "";
+        voice = null;
+        onend = null;
+        onerror = null;
+        constructor(public text: string) {}
+      },
+    });
+    Object.defineProperty(window, "speechSynthesis", {
+      configurable: true,
+      value: {
+        getVoices: () => [{ name: "Samantha", lang: "en-US" }, voice],
+        speak: (u: SpeechSynthesisUtterance) => {
+          spoken.push({ text: u.text, lang: u.lang });
+          queue.push(u);
+        },
+        cancel: () => {
+          const stopped = queue;
+          queue = [];
+          stopped.forEach((u) => u.onerror?.({} as SpeechSynthesisErrorEvent));
+        },
+      },
+    });
+  });
+  const speaker = page.getByRole("button", { name: "Đọc câu chuyện" });
+  await speaker.click();
+  await expect(speaker).toHaveAttribute("aria-pressed", "true");
+  const spoken = await page.evaluate(
+    () =>
+      (window as unknown as { __spoken: { text: string; lang: string }[] })
+        .__spoken,
+  );
+  expect(spoken[0].text).toMatch(/^Biên niên sử\. /);
+  expect(spoken.map((s) => s.text)).toContain("Bình (Sói) chết vì bình độc.");
+  expect(spoken.every((s) => s.lang === "vi-VN")).toBe(true);
+  await speaker.click();
+  await expect(speaker).toHaveAttribute("aria-pressed", "false");
+}
 async function tap(page: Page, labels: string[]) {
   for (const label of labels)
     await page.getByRole("button", { name: label, exact: true }).click();
@@ -233,6 +282,7 @@ test("wizard, full two-night game, replay, summaries and history", async ({
     "Phúc (Dân làng) chết vì sói tấn công",
   );
   await inspectSize(page, "05-ending", 390);
+  await readAloud(page);
   await page.getByRole("button", { name: "Thống kê", exact: true }).click();
   await expect(page.getByText("Lượt bảo vệ trúng mục tiêu Sói")).toBeVisible();
   await page.getByRole("button", { name: "Lật bài", exact: true }).click();

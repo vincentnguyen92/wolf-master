@@ -15,7 +15,11 @@ import {
   getCurrentAction,
 } from "../src/engine/selectors";
 import { statistics } from "../src/statistics/statistics";
-import { storyRecap, playerStory } from "../src/story/narrative";
+import {
+  storyRecap,
+  storySpeech,
+  playerStory,
+} from "../src/story/narrative";
 function setup(
   settings: Partial<GameSettings> = {},
   distribution: RoleId[] = [
@@ -447,6 +451,14 @@ it("blocked wolf attack is factual even if the same target dies of poison", () =
     story = storyRecap(g.events);
   expect(story).toContain("Đòn cắn nhắm vào P5 bị chặn bởi Người bảo vệ");
   expect(story).toContain("P5 (Dân làng) chết vì bình độc");
+});
+it("the spoken story reads headings as words, one line at a time", () => {
+  const g = night(start(), "5", "5", { poisonId: "5" }),
+    lines = storySpeech(g.events);
+  expect(lines[0]).toMatch(/^Biên niên sử\. /);
+  expect(lines).toContain("Đêm 1.");
+  expect(lines).toContain("P5 (Dân làng) chết vì bình độc.");
+  expect(lines.every((l) => l.trim() === l && l !== "")).toBe(true);
 });
 it("hunter executed at wolf parity gets to shoot before victory", () => {
   let g = execute(setup({}, ["werewolf", "hunter", "villager", "villager"]), {

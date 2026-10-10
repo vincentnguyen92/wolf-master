@@ -128,6 +128,21 @@ export function storyRecap(events: GameEvent[]): string {
       }),
   ].join("\n");
 }
+// The story as lines for a speech voice. Headings are turned into words a
+// voice reads naturally instead of capitals, and each line is spoken on its
+// own so long stories are not cut off.
+export function storySpeech(events: GameEvent[]): string[] {
+  return storyRecap(events)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const text = line.replace(/^BIÊN NIÊN SỬ • /, "Biên niên sử. ");
+      return text === text.toLocaleUpperCase("vi")
+        ? `${text[0]}${text.slice(1).toLocaleLowerCase("vi")}.`
+        : text;
+    });
+}
 export function playerStory(events: GameEvent[], id: string): string[] {
   const s = replay(events);
   return effectiveEvents(events)
