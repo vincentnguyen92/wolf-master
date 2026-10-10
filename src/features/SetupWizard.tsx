@@ -659,9 +659,6 @@ function SetupContent({
         {step === 4 && (
           <>
             <h1>Kiểm tra lần cuối</h1>
-            <p className="muted">
-              Úp máy về phía bạn. Chạm từng lá để lật xem, chạm lại để úp.
-            </p>
             <RoundTable
               seats={draft.players.map((p) => (
                 <span key={p.id} className="deal-seat">
@@ -692,6 +689,8 @@ function SetupContent({
               center={
                 <GameButton
                   variant="secondary"
+                  aria-label="Lật hết"
+                  aria-pressed={allUp}
                   onClick={() =>
                     setUp(
                       allUp
@@ -702,7 +701,7 @@ function SetupContent({
                     )
                   }
                 >
-                  {allUp ? "Úp hết" : "Lật hết"}
+                  {allUp ? <Eye size={20} /> : <EyeOff size={20} />}
                 </GameButton>
               }
             />
