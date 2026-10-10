@@ -363,17 +363,12 @@ function SetupContent({
         {step === 1 && (
           <>
             <h1>Ai ngồi quanh bàn?</h1>
-            <p className="muted">
-              {n} ghế theo số người đã chọn. Chạm một ghế để đặt tên hoặc dời
-              chỗ.
-            </p>
             <RoundTable
               seats={draft.players.map((p, i) => (
                 <SeatToken
                   key={p.id}
                   player={{ name: p.name, alive: true }}
                   selected={editing === p.id}
-                  note={`Ghế ${i + 1}`}
                   label={`Ghế ${i + 1}: ${p.name}`}
                   onClick={() => editSeat(p.id)}
                 />
@@ -381,9 +376,6 @@ function SetupContent({
               center={
                 editingPlayer ? (
                   <>
-                    <label className="rt-hint" htmlFor="seat-name">
-                      Ghế {draft.players.indexOf(editingPlayer) + 1}
-                    </label>
                     <input
                       ref={seatInput}
                       id="seat-name"
@@ -418,11 +410,7 @@ function SetupContent({
                       </button>
                     </div>
                   </>
-                ) : (
-                  <span className="rt-hint">
-                    Ghế 1 ở trên cùng, theo chiều kim đồng hồ
-                  </span>
-                )
+                ) : null
               }
             />
             <p className="muted">Đổi số người thì quay lại bước Ngôi làng.</p>
