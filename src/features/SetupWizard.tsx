@@ -5,6 +5,7 @@ import {
   ArrowRight,
   ChevronLeft,
   ChevronRight,
+  Eye,
   EyeOff,
   Plus,
 } from "lucide-react";
@@ -150,6 +151,8 @@ function SetupContent({
     firstUnassigned(assignment),
   );
   const [coverDealt, setCoverDealt] = useState(false);
+  // Last seat tap, so a quick second tap on a dealt seat returns its card.
+  const lastSeatTap = useRef<{ id: string; at: number } | null>(null);
   const updateSnapshot = (patch: Partial<WizardSnapshot>) => {
     const next = { ...latest.current, ...patch };
     try {
@@ -514,7 +517,8 @@ function SetupContent({
           <>
             <h1>Chia bài</h1>
             <p className="muted">
-              Chia từng lá cho từng ghế. Chạm một ghế để đổi lá của người đó.
+              Chia từng lá cho từng ghế. Chạm một ghế để đổi lá của người đó,
+              chạm nhanh hai lần để trả lá.
             </p>
             <div className="deal-bar">
               <strong>
@@ -522,11 +526,11 @@ function SetupContent({
               </strong>
               <GameButton
                 variant="ghost"
+                aria-label="Úp lá đã chia"
                 aria-pressed={coverDealt}
                 onClick={() => setCoverDealt(!coverDealt)}
               >
-                <EyeOff size={16} />
-                {coverDealt ? "Lật ngửa" : "Úp lá đã chia"}
+                {coverDealt ? <EyeOff size={20} /> : <Eye size={20} />}
               </GameButton>
             </div>
             <RoundTable
@@ -543,7 +547,21 @@ function SetupContent({
                       className="deal-slot"
                       aria-pressed={picked}
                       aria-label={`${p.name}: ${role ? (coverDealt ? "đã có vai" : roles[role].name) : "chưa có vai"}`}
-                      onClick={() => setSeat(picked ? null : p.id)}
+                      onClick={() => {
+                        const now = Date.now(),
+                          prev = lastSeatTap.current;
+                        lastSeatTap.current = { id: p.id, at: now };
+                        // Built by hand: iOS Safari does not reliably fire dblclick.
+                        if (role && prev?.id === p.id && now - prev.at < 350) {
+                          lastSeatTap.current = null;
+                          const next = { ...assignment };
+                          delete next[p.id];
+                          setAssignment(next);
+                          setSeat(p.id);
+                          return;
+                        }
+                        setSeat(picked ? null : p.id);
+                      }}
                     >
                       {role ? (
                         coverDealt ? (

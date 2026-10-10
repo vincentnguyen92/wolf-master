@@ -132,8 +132,11 @@ test("wizard, full two-night game, replay, summaries and history", async ({
   // Cường and Dũng swap: take Cường's card back, deal him the guard.
   await page.getByRole("button", { name: "Cường: Tiên tri" }).click();
   await page.getByRole("button", { name: "Trả lá", exact: true }).click();
-  await page.getByRole("button", { name: "Dũng: Người bảo vệ" }).click();
-  await page.getByRole("button", { name: "Trả lá", exact: true }).click();
+  // A quick double tap on a dealt seat returns the card too.
+  await page.getByRole("button", { name: "Dũng: Người bảo vệ" }).dblclick();
+  await expect(
+    page.getByRole("button", { name: "Dũng: chưa có vai" }),
+  ).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByText("Đã chia 6 / 8 lá")).toBeVisible();
   await page.getByRole("button", { name: "Cường: chưa có vai" }).click();
   await deal(page, ["Người bảo vệ", "Tiên tri"]);
